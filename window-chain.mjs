@@ -621,6 +621,14 @@ function createCompositionBuilder() {
     throw error;
   };
   let finalizer = null;
+  
+  // Circuit breaker state
+  const circuitState = {
+    status: 'CLOSED', // CLOSED, OPEN, HALF_OPEN
+    failures: 0,
+    lastFailure: null,
+    resetTimeout: null
+  };
 
   return {
     // Add function to composition pipeline
@@ -743,6 +751,228 @@ function createCompositionBuilder() {
     // Set finalizer
     finally(fn) {
       finalizer = fn;
+      return this;
+    },
+
+    // Add reduce operation
+    reduce(fn, initialValue) {
+      steps.push(async (input) => {
+        if (!Array.isArray(input)) {
+          throw new Error("Reduce requires array input");
+        }
+        let accumulator = initialValue;
+        for (const item of input) {
+          accumulator = await fn(accumulator, item);
+        }
+        return accumulator;
+      });
+      return this;
+    },
+
+    // Add batch processing
+    batch(size, fn) {
+      steps.push(async (input) => {
+        if (!Array.isArray(input)) {
+          throw new Error("Batch requires array input");
+        }
+        const batches = [];
+        for (let i = 0; i < input.length; i += size) {
+          batches.push(input.slice(i, i + size));
+        }
+        return Promise.all(batches.map(fn));
+      });
+      return this;
+    },
+
+    // Add rate limiting
+    rateLimit(maxRequests, timeWindow) {
+      const timestamps = [];
+      steps.push(async (input) => {
+        const now = Date.now();
+        timestamps.push(now);
+        
+        // Remove timestamps outside the window
+        while (timestamps[0] < now - timeWindow) {
+          timestamps.shift();
+        }
+
+        if (timestamps.length > maxRequests) {
+          const oldestTimestamp = timestamps[0];
+          const waitTime = timeWindow - (now - oldestTimestamp);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+
+        return steps[steps.length - 1](input);
+      });
+      return this;
+    },
+
+    // Add circuit breaker pattern
+    circuitBreaker(options = {}) {
+      const {
+        failureThreshold = 5,
+        resetTimeout = 60000,
+        halfOpenTimeout = 30000
+      } = options;
+
+      steps.push(async (input) => {
+        const now = Date.now();
+
+        // Check circuit state
+        switch (circuitState.status) {
+          case 'OPEN':
+            if (now - circuitState.lastFailure > resetTimeout) {
+              circuitState.status = 'HALF_OPEN';
+            } else {
+              throw new Error('Circuit breaker is OPEN');
+            }
+            break;
+          
+          case 'HALF_OPEN':
+            if (now - circuitState.lastFailure > halfOpenTimeout) {
+              circuitState.status = 'CLOSED';
+              circuitState.failures = 0;
+            }
+            break;
+        }
+
+        try {
+          const result = await steps[steps.length - 1](input);
+          if (circuitState.status === 'HALF_OPEN') {
+            circuitState.status = 'CLOSED';
+            circuitState.failures = 0;
+          }
+          return result;
+        } catch (error) {
+          circuitState.failures++;
+          circuitState.lastFailure = now;
+          
+          if (circuitState.failures >= failureThreshold) {
+            circuitState.status = 'OPEN';
+          }
+          throw error;
+        }
+      });
+      return this;
+    },
+
+    // Add saga pattern for distributed transactions
+    saga(compensations = []) {
+      steps.push(async (input) => {
+        const executedSteps = [];
+        try {
+          const result = await steps[steps.length - 1](input);
+          return result;
+        } catch (error) {
+          // Execute compensating transactions in reverse order
+          for (let i = executedSteps.length - 1; i >= 0; i--) {
+            const compensation = compensations[i];
+            if (compensation) {
+              try {
+                await compensation(executedSteps[i]);
+              } catch (compensationError) {
+                console.error('Compensation failed:', compensationError);
+              }
+            }
+          }
+          throw error;
+        }
+      });
+      return this;
+    },
+
+    // Add parallel processing with concurrency limit
+    parallelWithLimit(fn, limit) {
+      steps.push(async (input) => {
+        if (!Array.isArray(input)) {
+          throw new Error("Parallel processing requires array input");
+        }
+
+        const results = [];
+        const executing = new Set();
+
+        for (const item of input) {
+          if (executing.size >= limit) {
+            await Promise.race(executing);
+          }
+
+          const promise = fn(item).then(result => {
+            executing.delete(promise);
+            return result;
+          });
+
+          executing.add(promise);
+          results.push(promise);
+        }
+
+        return Promise.all(results);
+      });
+      return this;
+    },
+
+    // Add memoization with custom key generator
+    memoize(keyGen = JSON.stringify) {
+      const cache = new Map();
+      steps.push(async (input) => {
+        const key = keyGen(input);
+        if (cache.has(key)) {
+          return cache.get(key);
+        }
+        const result = await steps[steps.length - 1](input);
+        cache.set(key, result);
+        return result;
+      });
+      return this;
+    },
+
+    // Add event emission for monitoring
+    emit(eventName, callback) {
+      steps.push(async (input) => {
+        const startTime = Date.now();
+        try {
+          const result = await steps[steps.length - 1](input);
+          callback({
+            event: eventName,
+            status: 'success',
+            duration: Date.now() - startTime,
+            input,
+            result
+          });
+          return result;
+        } catch (error) {
+          callback({
+            event: eventName,
+            status: 'error',
+            duration: Date.now() - startTime,
+            input,
+            error
+          });
+          throw error;
+        }
+      });
+      return this;
+    },
+
+    // Add validation step
+    validate(schema) {
+      steps.push(async (input) => {
+        const errors = [];
+        for (const [key, validator] of Object.entries(schema)) {
+          try {
+            if (!validator(input[key])) {
+              errors.push(`Invalid ${key}`);
+            }
+          } catch (error) {
+            errors.push(`Validation error for ${key}: ${error.message}`);
+          }
+        }
+        
+        if (errors.length > 0) {
+          throw new Error(`Validation failed: ${errors.join(', ')}`);
+        }
+        
+        return steps[steps.length - 1](input);
+      });
       return this;
     },
 
@@ -1294,6 +1524,764 @@ function createTokenCounter(options = {}) {
   };
 }
 
+// Model management with advanced fallback chains and monitoring
+function createModelManager(options = {}) {
+  const models = new Map();
+  let activeModel = null;
+  const fallbackChain = [];
+  const modelStats = new Map();
+  const defaultStrategy = 'priority'; // 'priority', 'round-robin', 'performance'
+  const monitor = createPerformanceMonitor(options.monitoring);
+
+  // Initialize model statistics
+  function initModelStats(name) {
+    modelStats.set(name, {
+      successes: 0,
+      failures: 0,
+      totalLatency: 0,
+      averageLatency: 0,
+      lastUsed: null,
+      errorTypes: new Map()
+    });
+  }
+
+  // Update model statistics
+  function updateModelStats(name, success, latency, error = null) {
+    const stats = modelStats.get(name);
+    if (success) {
+      stats.successes++;
+      stats.totalLatency += latency;
+      stats.averageLatency = stats.totalLatency / stats.successes;
+    } else {
+      stats.failures++;
+      const errorType = error?.constructor.name || 'Unknown';
+      stats.errorTypes.set(errorType, (stats.errorTypes.get(errorType) || 0) + 1);
+    }
+    stats.lastUsed = Date.now();
+  }
+
+  return {
+    // Register a model with optional priority for fallback chain
+    registerModel(name, model, priority = 0) {
+      models.set(name, { model, priority });
+      fallbackChain.push({ name, priority });
+      fallbackChain.sort((a, b) => b.priority - a.priority);
+      initModelStats(name);
+      if (!activeModel) this.switchModel(name);
+      return this;
+    },
+
+    // Switch to a different model
+    switchModel(name) {
+      if (!models.has(name)) {
+        throw new Error(`Model ${name} not found`);
+      }
+      activeModel = name;
+      return this;
+    },
+
+    // Get current active model
+    getActiveModel() {
+      return activeModel ? models.get(activeModel).model : null;
+    },
+
+    // Get model statistics
+    getModelStats(name) {
+      return name ? modelStats.get(name) : Object.fromEntries(modelStats);
+    },
+
+    // Get next model based on strategy
+    getNextModel(strategy = defaultStrategy, excludeModel = null) {
+      const availableModels = fallbackChain.filter(m => m.name !== excludeModel);
+      if (!availableModels.length) return null;
+
+      switch (strategy) {
+        case 'priority':
+          return availableModels[0].name;
+        case 'round-robin':
+          const lastUsedIndex = availableModels.findIndex(m => m.name === activeModel);
+          return availableModels[(lastUsedIndex + 1) % availableModels.length].name;
+        case 'performance':
+          return Array.from(modelStats.entries())
+            .filter(([name]) => name !== excludeModel)
+            .sort((a, b) => {
+              const aScore = a[1].successes / (a[1].successes + a[1].failures) * (1 / (a[1].averageLatency || 1));
+              const bScore = b[1].successes / (b[1].successes + b[1].failures) * (1 / (b[1].averageLatency || 1));
+              return bScore - aScore;
+            })[0]?.[0];
+        default:
+          return availableModels[0].name;
+      }
+    },
+
+    // Execute with enhanced fallback chain
+    async execute(input, options = {}) {
+      const { 
+        fallbackStrategy = defaultStrategy,
+        maxAttempts = fallbackChain.length,
+        timeout = 30000 
+      } = options;
+
+      let attempts = 0;
+      let currentModel = activeModel;
+      let error = null;
+
+      while (attempts < maxAttempts && currentModel) {
+        const startTime = Date.now();
+        try {
+          const result = await Promise.race([
+            models.get(currentModel).model(input, options),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), timeout)
+            )
+          ]);
+
+          const latency = Date.now() - startTime;
+          monitor.recordEvent(currentModel, { 
+            success: true, 
+            latency 
+          });
+          return result;
+        } catch (e) {
+          error = e;
+          const latency = Date.now() - startTime;
+          monitor.recordEvent(currentModel, { 
+            success: false, 
+            latency,
+            error: e,
+            isTimeout: e.message === 'Timeout'
+          });
+          
+          attempts++;
+          currentModel = this.getNextModel(fallbackStrategy, currentModel);
+        }
+      }
+
+      throw error || new Error('No available models to process request');
+    },
+
+    // Get performance metrics
+    getPerformanceMetrics(modelName) {
+      return monitor.getMetrics(modelName);
+    },
+
+    // Add performance monitoring listener
+    addPerformanceListener(callback) {
+      return monitor.addListener(callback);
+    }
+  };
+}
+
+// Performance monitoring system for model analytics
+function createPerformanceMonitor(options = {}) {
+  const {
+    sampleSize = 100,
+    alertThresholds = {
+      errorRate: 0.2,
+      latency: 5000,
+      timeout: 30000
+    }
+  } = options;
+
+  const metrics = new Map();
+  const listeners = new Set();
+
+  function createMetrics() {
+    return {
+      requests: 0,
+      successes: 0,
+      failures: 0,
+      totalLatency: 0,
+      latencyHistory: [],
+      errorHistory: [],
+      lastUsed: null,
+      errorTypes: new Map(),
+      timeouts: 0
+    };
+  }
+
+  return {
+    // Record a model execution event
+    recordEvent(modelName, { success, latency, error = null, isTimeout = false }) {
+      if (!metrics.has(modelName)) {
+        metrics.set(modelName, createMetrics());
+      }
+
+      const modelMetrics = metrics.get(modelName);
+      modelMetrics.requests++;
+      modelMetrics.lastUsed = Date.now();
+
+      if (success) {
+        modelMetrics.successes++;
+        modelMetrics.totalLatency += latency;
+        modelMetrics.latencyHistory.push({ timestamp: Date.now(), latency });
+      } else {
+        modelMetrics.failures++;
+        if (isTimeout) modelMetrics.timeouts++;
+        if (error) {
+          const errorType = error.constructor.name;
+          modelMetrics.errorTypes.set(
+            errorType,
+            (modelMetrics.errorTypes.get(errorType) || 0) + 1
+          );
+          modelMetrics.errorHistory.push({ 
+            timestamp: Date.now(),
+            type: errorType,
+            message: error.message
+          });
+        }
+      }
+
+      // Maintain history size
+      if (modelMetrics.latencyHistory.length > sampleSize) {
+        modelMetrics.latencyHistory = modelMetrics.latencyHistory.slice(-sampleSize);
+      }
+      if (modelMetrics.errorHistory.length > sampleSize) {
+        modelMetrics.errorHistory = modelMetrics.errorHistory.slice(-sampleSize);
+      }
+
+      // Check thresholds and notify listeners
+      this.checkThresholds(modelName);
+    },
+
+    // Add a listener for monitoring events
+    addListener(callback) {
+      listeners.add(callback);
+      return () => listeners.delete(callback);
+    },
+
+    // Check performance thresholds
+    checkThresholds(modelName) {
+      const modelMetrics = metrics.get(modelName);
+      if (!modelMetrics) return;
+
+      const errorRate = modelMetrics.failures / modelMetrics.requests;
+      const avgLatency = modelMetrics.totalLatency / modelMetrics.successes;
+      const recentTimeouts = modelMetrics.timeouts;
+
+      const alerts = [];
+      
+      if (errorRate > alertThresholds.errorRate) {
+        alerts.push({
+          type: 'ERROR_RATE',
+          message: `High error rate (${(errorRate * 100).toFixed(2)}%) for model: ${modelName}`,
+          value: errorRate
+        });
+      }
+
+      if (avgLatency > alertThresholds.latency) {
+        alerts.push({
+          type: 'LATENCY',
+          message: `High average latency (${avgLatency.toFixed(2)}ms) for model: ${modelName}`,
+          value: avgLatency
+        });
+      }
+
+      if (recentTimeouts > 0) {
+        alerts.push({
+          type: 'TIMEOUTS',
+          message: `${recentTimeouts} timeout(s) detected for model: ${modelName}`,
+          value: recentTimeouts
+        });
+      }
+
+      if (alerts.length > 0) {
+        const event = {
+          timestamp: Date.now(),
+          model: modelName,
+          metrics: this.getMetrics(modelName),
+          alerts
+        };
+        listeners.forEach(listener => listener(event));
+      }
+    },
+
+    // Get metrics for a specific model or all models
+    getMetrics(modelName) {
+      if (modelName) {
+        const modelMetrics = metrics.get(modelName);
+        if (!modelMetrics) return null;
+
+        return {
+          ...modelMetrics,
+          errorRate: modelMetrics.failures / modelMetrics.requests,
+          averageLatency: modelMetrics.totalLatency / modelMetrics.successes,
+          recentLatency: modelMetrics.latencyHistory
+            .slice(-10)
+            .reduce((sum, { latency }) => sum + latency, 0) / 10,
+          errorTypes: Object.fromEntries(modelMetrics.errorTypes),
+          recentErrors: modelMetrics.errorHistory.slice(-10)
+        };
+      }
+      return Object.fromEntries(
+        Array.from(metrics.entries()).map(([name, metrics]) => [
+          name,
+          this.getMetrics(name)
+        ])
+      );
+    },
+
+    // Reset metrics for a specific model or all models
+    resetMetrics(modelName) {
+      if (modelName) {
+        metrics.set(modelName, createMetrics());
+      } else {
+        metrics.clear();
+      }
+    }
+  };
+}
+
+// Template inheritance system
+function createTemplateSystem() {
+  const templates = new Map();
+  const templateVersions = new Map();
+  const blockRegex = /\{\% block (\w+) \%\}([\s\S]*?)\{\% endblock \%\}/g;
+  const extendsRegex = /\{\% extends ["'](.+?)["'] \%\}/;
+  const includeRegex = /\{\% include ["'](.+?)["'] \%\}/g;
+  const variableRegex = /\{\{ (\w+) \}\}/g;
+  const versionRegex = /^(\d+)\.(\d+)\.(\d+)$/;
+
+  function validateVersion(version) {
+    if (!versionRegex.test(version)) {
+      throw new Error('Invalid version format. Use semantic versioning (e.g., "1.0.0")');
+    }
+    return version;
+  }
+
+  function compareVersions(v1, v2) {
+    const [major1, minor1, patch1] = v1.split('.').map(Number);
+    const [major2, minor2, patch2] = v2.split('.').map(Number);
+
+    if (major1 !== major2) return major1 - major2;
+    if (minor1 !== minor2) return minor1 - minor2;
+    return patch1 - patch2;
+  }
+
+  const validator = createTemplateValidator();
+
+  return {
+    // Register a template
+    register(name, content, version = '1.0.0', validateRules = []) {
+      if (validateRules.length > 0) {
+        const validation = validator.validate(content, validateRules);
+        if (!validation.valid) {
+          throw new Error(
+            'Template validation failed:\n' +
+            validation.violations
+              .map(v => `- ${v.severity.toUpperCase()}: ${v.message}`)
+              .join('\n')
+          );
+        }
+      }
+
+      version = validateVersion(version);
+      templates.set(name, content);
+      
+      // Initialize version control
+      if (!templateVersions.has(name)) {
+        templateVersions.set(name, new Map());
+      }
+      
+      const templateVersion = {
+        content,
+        version,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      templateVersions.get(name).set(version, templateVersion);
+      
+      return this;
+    },
+
+    // Get a registered template
+    get(name) {
+      if (!templates.has(name)) {
+        throw new Error(`Template not found: ${name}`);
+      }
+      return templates.get(name);
+    },
+
+    // Parse blocks from template
+    parseBlocks(content) {
+      const blocks = new Map();
+      let match;
+      while ((match = blockRegex.exec(content)) !== null) {
+        blocks.set(match[1], match[2].trim());
+      }
+      return blocks;
+    },
+
+    // Process template inheritance
+    processInheritance(content) {
+      const extendsMatch = content.match(extendsRegex);
+      if (!extendsMatch) return content;
+
+      const parentName = extendsMatch[1];
+      const parentTemplate = this.get(parentName);
+      const childBlocks = this.parseBlocks(content);
+      const parentBlocks = this.parseBlocks(parentTemplate);
+
+      // Merge child blocks into parent template
+      let result = parentTemplate;
+      for (const [name, content] of parentBlocks) {
+        const blockPattern = new RegExp(
+          `\\{\\% block ${name} \\%\\}[\\s\\S]*?\\{\\% endblock \\%\\}`
+        );
+        const replacement = childBlocks.has(name)
+          ? `{% block ${name} %}${childBlocks.get(name)}{% endblock %}`
+          : `{% block ${name} %}${content}{% endblock %}`;
+        result = result.replace(blockPattern, replacement);
+      }
+
+      // Add any new blocks from child
+      for (const [name, content] of childBlocks) {
+        if (!parentBlocks.has(name)) {
+          result += `\n{% block ${name} %}${content}{% endblock %}`;
+        }
+      }
+
+      return result;
+    },
+
+    // Process includes
+    processIncludes(content) {
+      let result = content;
+      let match;
+      while ((match = includeRegex.exec(content)) !== null) {
+        const includeName = match[1];
+        const includeContent = this.get(includeName);
+        result = result.replace(match[0], includeContent);
+      }
+      return result;
+    },
+
+    // Render template with variables
+    render(name, variables = {}, version) {
+      let content;
+      if (version) {
+        content = this.getVersion(name, version).content;
+      } else {
+        content = this.get(name);
+      }
+      
+      // Process inheritance
+      content = this.processInheritance(content);
+      
+      // Process includes
+      content = this.processIncludes(content);
+      
+      // Replace variables
+      content = content.replace(variableRegex, (match, key) => {
+        if (!(key in variables)) {
+          throw new Error(`Missing variable: ${key}`);
+        }
+        return variables[key];
+      });
+
+      return content;
+    },
+
+    // Version control methods
+    createVersion(name, content, version) {
+      if (!templates.has(name)) {
+        throw new Error(`Template not found: ${name}`);
+      }
+
+      version = validateVersion(version);
+      const templateVersion = {
+        content,
+        version,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+
+      if (!templateVersions.has(name)) {
+        templateVersions.set(name, new Map());
+      }
+      
+      const versions = templateVersions.get(name);
+      versions.set(version, templateVersion);
+
+      // Update the current template to the new version
+      templates.set(name, content);
+
+      return this;
+    },
+
+    getVersion(name, version) {
+      if (!templateVersions.has(name)) {
+        throw new Error(`No versions found for template: ${name}`);
+      }
+
+      const versions = templateVersions.get(name);
+      if (!version) {
+        // Return latest version if no specific version requested
+        const latestVersion = Array.from(versions.keys())
+          .sort(compareVersions)
+          .pop();
+        return versions.get(latestVersion);
+      }
+
+      version = validateVersion(version);
+      const templateVersion = versions.get(version);
+      if (!templateVersion) {
+        throw new Error(`Version ${version} not found for template: ${name}`);
+      }
+
+      return templateVersion;
+    },
+
+    listVersions(name) {
+      if (!templateVersions.has(name)) {
+        return [];
+      }
+
+      return Array.from(templateVersions.get(name).keys())
+        .sort(compareVersions)
+        .map(version => ({
+          version,
+          createdAt: templateVersions.get(name).get(version).createdAt
+        }));
+    },
+
+    rollback(name, version) {
+      const targetVersion = this.getVersion(name, version);
+      templates.set(name, targetVersion.content);
+      return this;
+    },
+
+    // Create a new version with semantic versioning
+    bumpVersion(name, type = 'patch') {
+      const versions = this.listVersions(name);
+      if (versions.length === 0) {
+        throw new Error(`No versions found for template: ${name}`);
+      }
+
+      const currentVersion = versions[versions.length - 1].version;
+      const [major, minor, patch] = currentVersion.split('.').map(Number);
+
+      let newVersion;
+      switch (type) {
+        case 'major':
+          newVersion = `${major + 1}.0.0`;
+          break;
+        case 'minor':
+          newVersion = `${major}.${minor + 1}.0`;
+          break;
+        case 'patch':
+          newVersion = `${major}.${minor}.${patch + 1}`;
+          break;
+        default:
+          throw new Error('Invalid version bump type. Use: major, minor, or patch');
+      }
+
+      return this.createVersion(name, templates.get(name), newVersion);
+    },
+
+    // Add validation rule
+    addValidationRule(name, config) {
+      validator.addRule(name, config);
+      return this;
+    },
+
+    // Validate template
+    validate(name, rules = []) {
+      const content = this.get(name);
+      return validator.validate(content, rules);
+    },
+
+    // Get available validation rules
+    getValidationRules() {
+      return validator.getRules();
+    },
+  };
+}
+
+// Template validation system
+function createTemplateValidator() {
+  const rules = new Map();
+  const RULE_TYPES = {
+    REGEX: 'regex',
+    FUNCTION: 'function',
+    SCHEMA: 'schema',
+    LENGTH: 'length',
+    REQUIRED_BLOCKS: 'required_blocks',
+    FORBIDDEN_BLOCKS: 'forbidden_blocks',
+    VARIABLE_CONSTRAINTS: 'variable_constraints'
+  };
+
+  return {
+    // Add a validation rule
+    addRule(name, config) {
+      const {
+        type,
+        pattern,
+        message,
+        severity = 'error', // 'error' | 'warning'
+        options = {}
+      } = config;
+
+      if (!RULE_TYPES[type.toUpperCase()]) {
+        throw new Error(`Invalid rule type: ${type}`);
+      }
+
+      rules.set(name, { type, pattern, message, severity, options });
+      return this;
+    },
+
+    // Validate template content
+    validate(content, activeRules = []) {
+      const violations = [];
+      const blockRegex = /\{\% block (\w+) \%\}([\s\S]*?)\{\% endblock \%\}/g;
+      const variableRegex = /\{\{ (\w+) \}\}/g;
+
+      // Helper to add violations
+      const addViolation = (rule, message, location = null) => {
+        violations.push({
+          rule: rule.name,
+          message: message || rule.message,
+          severity: rule.severity,
+          location
+        });
+      };
+
+      // Process each active rule
+      for (const ruleName of activeRules) {
+        const rule = rules.get(ruleName);
+        if (!rule) continue;
+
+        switch (rule.type) {
+          case RULE_TYPES.REGEX:
+            {
+              const matches = content.match(rule.pattern);
+              if (matches && rule.options.forbidden) {
+                addViolation(rule, `Found forbidden pattern: ${matches[0]}`);
+              } else if (!matches && !rule.options.forbidden) {
+                addViolation(rule, `Required pattern not found: ${rule.pattern}`);
+              }
+            }
+            break;
+
+          case RULE_TYPES.FUNCTION:
+            {
+              try {
+                const result = rule.pattern(content);
+                if (!result.valid) {
+                  addViolation(rule, result.message);
+                }
+              } catch (error) {
+                addViolation(rule, `Validation function error: ${error.message}`);
+              }
+            }
+            break;
+
+          case RULE_TYPES.SCHEMA:
+            {
+              const variables = new Set();
+              let match;
+              while ((match = variableRegex.exec(content)) !== null) {
+                variables.add(match[1]);
+              }
+
+              // Validate required variables
+              for (const [key, schema] of Object.entries(rule.pattern)) {
+                if (schema.required && !variables.has(key)) {
+                  addViolation(rule, `Missing required variable: ${key}`);
+                }
+              }
+            }
+            break;
+
+          case RULE_TYPES.LENGTH:
+            {
+              const { min, max } = rule.options;
+              if (min !== undefined && content.length < min) {
+                addViolation(rule, `Template length ${content.length} is below minimum ${min}`);
+              }
+              if (max !== undefined && content.length > max) {
+                addViolation(rule, `Template length ${content.length} exceeds maximum ${max}`);
+              }
+            }
+            break;
+
+          case RULE_TYPES.REQUIRED_BLOCKS:
+            {
+              const blocks = new Set();
+              let match;
+              while ((match = blockRegex.exec(content)) !== null) {
+                blocks.add(match[1]);
+              }
+
+              for (const requiredBlock of rule.pattern) {
+                if (!blocks.has(requiredBlock)) {
+                  addViolation(rule, `Missing required block: ${requiredBlock}`);
+                }
+              }
+            }
+            break;
+
+          case RULE_TYPES.FORBIDDEN_BLOCKS:
+            {
+              let match;
+              while ((match = blockRegex.exec(content)) !== null) {
+                if (rule.pattern.includes(match[1])) {
+                  addViolation(rule, `Found forbidden block: ${match[1]}`);
+                }
+              }
+            }
+            break;
+
+          case RULE_TYPES.VARIABLE_CONSTRAINTS:
+            {
+              let match;
+              while ((match = variableRegex.exec(content)) !== null) {
+                const varName = match[1];
+                const constraints = rule.pattern[varName];
+                
+                if (constraints) {
+                  if (constraints.format && !constraints.format.test(varName)) {
+                    addViolation(rule, `Variable ${varName} does not match required format`);
+                  }
+                  if (constraints.prefix && !varName.startsWith(constraints.prefix)) {
+                    addViolation(rule, `Variable ${varName} must start with ${constraints.prefix}`);
+                  }
+                  if (constraints.suffix && !varName.endsWith(constraints.suffix)) {
+                    addViolation(rule, `Variable ${varName} must end with ${constraints.suffix}`);
+                  }
+                }
+              }
+            }
+            break;
+        }
+      }
+
+      return {
+        valid: violations.length === 0,
+        violations: violations.sort((a, b) => 
+          a.severity === 'error' ? -1 : b.severity === 'error' ? 1 : 0
+        )
+      };
+    },
+
+    // Get all available rules
+    getRules() {
+      return Array.from(rules.entries()).map(([name, rule]) => ({
+        name,
+        type: rule.type,
+        severity: rule.severity,
+        message: rule.message
+      }));
+    },
+
+    // Remove a rule
+    removeRule(name) {
+      rules.delete(name);
+      return this;
+    }
+  };
+}
+
 export {
   createTemplate,
   createMessageTemplate,
@@ -1320,4 +2308,7 @@ export {
   enhancedStreamPrompt,
   createStreamProcessor,
   createTokenCounter,
+  createModelManager,
+  createPerformanceMonitor,
+  createTemplateSystem,
 };
