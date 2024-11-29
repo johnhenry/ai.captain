@@ -3,24 +3,38 @@
  */
 
 // Core
-export { Session } from './core/session.js';
-export { Capabilities } from './core/capabilities.js';
+import { Session } from './core/session.js';
+import { Capabilities } from './core/capabilities.js';
 
 // Templates
-export { TemplateSystem } from './templates/system.js';
-export { TemplateValidator } from './templates/validation.js';
+import { TemplateSystem } from './templates/system.js';
+import { TemplateValidator } from './templates/validation.js';
 
 // Caching
-export { DistributedCache } from './caching/distributed.js';
-export { CacheCompression } from './caching/compression.js';
+import { DistributedCache } from './caching/distributed.js';
+import { CacheCompression } from './caching/compression.js';
 
 // Composition
-export { CompositionBuilder } from './composition/builder.js';
-export { CompositionChains } from './composition/chains.js';
+import { CompositionBuilder } from './composition/builder.js';
+import { CompositionChains } from './composition/chains.js';
 
 // Monitoring
-export { PerformanceAnalytics } from './monitoring/analytics.js';
-export { FallbackSystem } from './monitoring/fallback.js';
+import { PerformanceAnalytics } from './monitoring/analytics.js';
+import { FallbackSystem } from './monitoring/fallback.js';
+
+// Re-export all components
+export {
+  Session,
+  Capabilities,
+  TemplateSystem,
+  TemplateValidator,
+  DistributedCache,
+  CacheCompression,
+  CompositionBuilder,
+  CompositionChains,
+  PerformanceAnalytics,
+  FallbackSystem
+};
 
 /**
  * Create a new Window Chain instance with all features enabled

@@ -1,9 +1,19 @@
 /**
  * Enhanced capabilities wrapper for Window.ai
  */
+
+// Determine if running in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
 export class Capabilities {
   constructor(rawCapabilities) {
-    this.raw = rawCapabilities;
+    // Store raw capabilities but don't expose them in object spread
+    Object.defineProperty(this, 'raw', {
+      value: rawCapabilities,
+      enumerable: false
+    });
+    
+    // Copy capabilities properties
     this.available = rawCapabilities.available;
     this.defaultTopK = rawCapabilities.defaultTopK;
     this.maxTopK = rawCapabilities.maxTopK;
@@ -15,7 +25,14 @@ export class Capabilities {
    * @returns {Promise<Capabilities>} Capabilities instance
    */
   static async get() {
-    const capabilities = await window.ai.languageModel.capabilities();
+    // Use window.ai if available, otherwise use the mock implementation
+    const ai = isBrowser ? window.ai : globalThis.ai;
+
+    if (!ai) {
+      throw new Error('Window.ai API not available');
+    }
+
+    const capabilities = await ai.languageModel.capabilities();
     return new Capabilities(capabilities);
   }
 

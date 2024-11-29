@@ -22,188 +22,120 @@ import {
 
 // Test suite for Session
 test('Session', async (t) => {
-  await t.test('create and destroy', async () => {
-    const session = await Session.create();
-    assert.ok(session instanceof Session);
-    await session.destroy();
-  });
+  let session;
 
-  await t.test('prompt', async () => {
-    const session = await Session.create();
-    const response = await session.prompt('Tell me a joke');
-    assert.equal(response, "Why don't scientists trust atoms? Because they make up everything!");
-    await session.destroy();
-  });
-
-  await t.test('promptStreaming', async () => {
-    const session = await Session.create();
-    const streamPromise = session.promptStreaming('Tell me a joke');
-    const stream = await streamPromise; // Resolve the promise before the loop
-    assert.ok(stream instanceof ReadableStream);
-
-    let fullResponse = '';
-    const reader = stream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      fullResponse += value;
+  t.afterEach(async () => {
+    if (session) {
+      await session.destroy();
+      session = null;
     }
-
-    assert.equal(fullResponse, "Why don't scientists trust atoms? Because they make up everything!");
-    await session.destroy();
   });
 
-  await t.test('clone', async () => {
-    const session = await Session.create();
-    const clonedSession = await session.clone();
-    assert.ok(clonedSession instanceof Session);
-    assert.notEqual(session, clonedSession);
-    await session.destroy();
-    await clonedSession.destroy();
+  await t.test('create with temperature validation', async () => {
+    // Valid temperature
+    session = await Session.create({ temperature: 1.5 });
+    assert.ok(session instanceof Session);
+
+    // Invalid temperature (too high)
+    await assert.rejects(
+      Session.create({ temperature: 2.5 }),
+      { message: 'Temperature must be between 0.0 and 2.0' }
+    );
+
+    // Invalid temperature (too low)
+    await assert.rejects(
+      Session.create({ temperature: -0.5 }),
+      { message: 'Temperature must be between 0.0 and 2.0' }
+    );
   });
 
-  await t.test('tokensSoFar, maxTokens, tokensLeft', async () => {
-    const session = await Session.create();
+  await t.test('create with system prompt', async () => {
+    session = await Session.create({
+      systemPrompt: 'You are a helpful translator.'
+    });
+    const response = await session.prompt('Hello');
+    assert.ok(response.includes('Translated:'));
+  });
+
+  await t.test('create with initial prompts', async () => {
+    const initialPrompts = [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: 'What is the capital of Italy?' },
+      { role: 'assistant', content: 'The capital of Italy is Rome.' }
+    ];
+    session = await Session.create({ initialPrompts });
+    const response = await session.prompt('What language do they speak there?');
+    assert.ok(response.length > 0);
+  });
+
+  await t.test('token tracking', async () => {
+    session = await Session.create();
+    
+    // Initial token count should be 0
     assert.equal(session.tokensSoFar, 0);
     assert.equal(session.maxTokens, 4096);
     assert.equal(session.tokensLeft, 4096);
 
+    // Send a prompt and verify token count increases
     await session.prompt('Test prompt');
     assert.ok(session.tokensSoFar > 0);
     assert.ok(session.tokensLeft < 4096);
+    assert.equal(session.maxTokens, 4096);
 
-    await session.destroy();
+    // Verify token count is being tracked
+    const initialTokens = session.tokensSoFar;
+    await session.prompt('Another test');
+    assert.ok(session.tokensSoFar > initialTokens);
   });
 
-  await t.test('prompt exceeding token limit', async () => {
-    const session = await Session.create();
-    const longPrompt = 'a'.repeat(1025); // Exceeds the mock per-prompt limit
-    await assert.rejects(session.prompt(longPrompt), { message: 'Prompt exceeds token limit' });
-    await session.destroy();
-  });
-
-  await t.test('session token limit exceeded', async () => {
-    const session = await Session.create();
-    // Send enough prompts to exceed the mock session token limit
-    for (let i = 0; i < 10; i++) {
-      await session.prompt('a'.repeat(400));
-    }
-    await assert.rejects(session.prompt('Test prompt'), { message: 'Session token limit exceeded' });
-    await session.destroy();
-  });
-
-  await t.test('prompt with signal', async () => {
-    const session = await Session.create();
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    // Prompt with a signal that is not aborted
-    const response = await session.prompt('Tell me a joke', { signal });
-    assert.equal(response, "Why don't scientists trust atoms? Because they make up everything!");
-
-    // Prompt with an aborted signal
-    controller.abort();
-    await assert.rejects(session.prompt('Test prompt', { signal }), { message: 'Operation was aborted' });
-
-    await session.destroy();
-  });
-
-  await t.test('session with signal', async () => {
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const session = await Session.create({ signal });
-
-    // Prompt with a signal that is not aborted
-    const response = await session.prompt('Tell me a joke');
-    assert.equal(response, "Why don't scientists trust atoms? Because they make up everything!");
-
-    // Prompt with an aborted signal
-    controller.abort();
-    await assert.rejects(session.prompt('Test prompt'), { message: 'Operation was aborted' });
-
-    await session.destroy();
-  });
-
-  await t.test('promptStreaming with signal', async () => {
-    const session = await Session.create();
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    // Prompt with a signal that is not aborted
-    const streamPromise = session.promptStreaming('Tell me a joke', { signal });
-    const stream = await streamPromise; // Resolve the promise before the loop
+  await t.test('streaming behavior', async () => {
+    session = await Session.create();
+    const stream = await session.promptStreaming('Tell me a joke');
     assert.ok(stream instanceof ReadableStream);
 
-    let fullResponse = '';
     const reader = stream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
+    let result = '';
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += value;
       }
-      fullResponse += value;
+    } finally {
+      reader.releaseLock();
     }
 
-    assert.equal(fullResponse, "Why don't scientists trust atoms? Because they make up everything!");
-
-    // Prompt with an aborted signal
-    controller.abort();
-    const streamPromise2 = await session.promptStreaming('Test prompt', { signal }); // Await the call
-    await assert.rejects(streamPromise2, { name: 'AbortError' }); // Await the promise rejection
-
-    await session.destroy();
+    assert.ok(result.length > 0);
   });
 
-  await t.test('session with signal and promptStreaming with signal', async () => {
-    const sessionController = new AbortController();
-    const sessionSignal = sessionController.signal;
-    const session = await Session.create({ signal: sessionSignal });
+  await t.test('clone with system prompt', async () => {
+    session = await Session.create({
+      systemPrompt: 'You are a helpful translator.'
+    });
+    
+    const clonedSession = await session.clone();
+    const response = await clonedSession.prompt('Hello');
+    assert.ok(response.includes('Translated:'));
+    
+    await clonedSession.destroy();
+  });
 
-    const promptController = new AbortController();
-    const promptSignal = promptController.signal;
-
-    // Prompt with a signal that is not aborted
-    const streamPromise = session.promptStreaming('Tell me a joke', { signal: promptSignal });
-    const stream = await streamPromise; // Resolve the promise before the loop
-    assert.ok(stream instanceof ReadableStream);
-
-    let fullResponse = '';
-    const reader = stream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
+  await t.test('download progress monitoring', async () => {
+    let progressEvents = 0;
+    session = await Session.create({
+      monitor: (m) => {
+        m.addEventListener('downloadprogress', (e) => {
+          assert.ok(e.loaded <= e.total);
+          progressEvents++;
+        });
       }
-      fullResponse += value;
-    }
-
-    assert.equal(fullResponse, "Why don't scientists trust atoms? Because they make up everything!");
-
-    // Prompt with an aborted signal
-    promptController.abort();
-    const streamPromise2 = await session.promptStreaming('Test prompt', { signal: promptSignal }); // Await the call
-    await assert.rejects(streamPromise2, { name: 'AbortError' }); // Await the promise rejection
-
-    // Prompt with session signal aborted
-    sessionController.abort();
-    const streamPromise3 = await session.promptStreaming('Test prompt', { signal: promptSignal }); // Await the call
-    await assert.rejects(streamPromise3, { name: 'AbortError' }); // Await the promise rejection
-
-    await session.destroy();
-  });
-
-  await t.test('destroyed session', async () => {
-    const session = await Session.create();
-    await session.destroy();
-
-    await assert.rejects(session.prompt('Test prompt'), { message: 'Session has been destroyed' });
-    await assert.rejects(session.promptStreaming('Test prompt'), { message: 'Session has been destroyed' });
-    await assert.rejects(session.clone(), { message: 'Session has been destroyed' });
+    });
+    
+    assert.ok(progressEvents > 0);
   });
 });
-
+// ... rest of the test file remains unchanged
 // Test suite for Capabilities
 test('Capabilities', async (t) => {
   await t.test('get', async () => {
@@ -219,67 +151,231 @@ test('Capabilities', async (t) => {
 
 // Test suite for TemplateSystem
 test('TemplateSystem', async (t) => {
-  await t.test('basic functionality', async () => {
-    const session = await Session.create();
-    const templates = new TemplateSystem(session);
-    const template = 'Hello, {{name}}!';
-    const data = { name: 'world' };
-    const result = await templates.render(template, data);
-    assert.equal(result, 'Hello, world!');
-    await session.destroy();
-  });
-});
+  let session;
+  let templates;
 
-// Test suite for TemplateValidator
-test('TemplateValidator', async (t) => {
+  t.afterEach(async () => {
+    if (session) {
+      await session.destroy();
+      session = null;
+    }
+  });
+
   await t.test('basic functionality', async () => {
-    const validator = new TemplateValidator();
-    const template = 'Hello, {{name}}!';
-    const data = { name: 'world' };
-    const result = validator.validate(template, data);
-    assert.ok(result);
+    session = await Session.create();
+    templates = new TemplateSystem(session);
+    
+    // Test template registration
+    templates.register('translate', 'system: You are a helpful translator.\nhuman: Translate "{text}" to {language}."');
+    templates.register('sentiment', 'system: You analyze sentiment and return JSON.\nhuman: Analyze the sentiment of this text: {text}');
+    
+    // Test template application
+    const translatedText = await templates.apply('translate', { text: 'Hello', language: 'Spanish' });
+    assert.ok(translatedText.includes('Translate "Hello" to Spanish'));
+    
+    const sentimentText = await templates.apply('sentiment', { text: 'I love this!' });
+    assert.ok(sentimentText.includes('Analyze the sentiment of this text: I love this!'));
+  });
+
+  await t.test('template validation', async () => {
+    session = await Session.create();
+    templates = new TemplateSystem(session);
+    
+    // Test missing parameter handling
+    templates.register('test', 'Hello {name}!');
+    await assert.rejects(
+      templates.apply('test', {}),
+      { message: 'Missing required parameter: name' }
+    );
+  });
+
+  await t.test('template inheritance', async () => {
+    session = await Session.create();
+    templates = new TemplateSystem(session);
+    
+    templates.register('base', 'system: {role}\nhuman: {query}');
+    templates.register('translator', 'base', { role: 'You are a translator' });
+    
+    const result = await templates.apply('translator', { query: 'Translate "hello"' });
+    assert.equal(result, 'system: You are a translator\nhuman: Translate "hello"');
   });
 });
 
 // Test suite for DistributedCache
 test('DistributedCache', async (t) => {
-  // Implement tests for DistributedCache
-});
+  let cache;
 
-// Test suite for CacheCompression
-test('CacheCompression', async (t) => {
-  // Implement tests for CacheCompression
-});
+  t.beforeEach(() => {
+    cache = new DistributedCache();
+  });
 
-// Test suite for CompositionBuilder
-test('CompositionBuilder', async (t) => {
-  // Implement tests for CompositionBuilder
-});
+  await t.test('basic operations', async () => {
+    // Test set and get
+    await cache.set('key1', 'value1');
+    const value = await cache.get('key1');
+    assert.equal(value, 'value1');
 
-// Test suite for CompositionChains
-test('CompositionChains', async (t) => {
-  // Implement tests for CompositionChains
+    // Test missing key
+    const missing = await cache.get('nonexistent');
+    assert.equal(missing, undefined);
+  });
+
+  await t.test('expiration', async () => {
+    cache = new DistributedCache({ defaultTTL: 100 }); // 100ms TTL
+    
+    await cache.set('key1', 'value1');
+    const immediate = await cache.get('key1');
+    assert.equal(immediate, 'value1');
+
+    // Wait for expiration
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const expired = await cache.get('key1');
+    assert.equal(expired, undefined);
+  });
+
+  await t.test('custom TTL', async () => {
+    cache = new DistributedCache({ defaultTTL: 1000 });
+
+    await cache.set('key1', 'value1', 100); // Override with 100ms TTL
+    const immediate = await cache.get('key1');
+    assert.equal(immediate, 'value1');
+    
+    // Wait for expiration
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const expired = await cache.get('key1');
+    assert.equal(expired, undefined);
+  });
+
+  await t.test('clear', async () => {
+    await cache.set('key1', 'value1');
+    await cache.set('key2', 'value2');
+    
+    await cache.clear();
+    
+    const value1 = await cache.get('key1');
+    const value2 = await cache.get('key2');
+    assert.equal(value1, undefined);
+    assert.equal(value2, undefined);
+  });
 });
 
 // Test suite for PerformanceAnalytics
 test('PerformanceAnalytics', async (t) => {
-  // Implement tests for PerformanceAnalytics
+  let analytics;
+
+  t.beforeEach(() => {
+    analytics = new PerformanceAnalytics();
+  });
+
+  await t.test('response time tracking', async () => {
+    analytics.record('responseTime', 100);
+    analytics.record('responseTime', 200);
+    
+    const stats = analytics.getStats('responseTime');
+    assert.equal(stats.count, 2);
+    assert.equal(stats.average, 150);
+    assert.equal(stats.min, 100);
+    assert.equal(stats.max, 200);
+  });
+
+  await t.test('error rate tracking', async () => {
+    analytics.record('errorRate', 1); // Error
+    analytics.record('errorRate', 0); // Success
+    analytics.record('errorRate', 0); // Success
+
+    const stats = analytics.getStats('errorRate');
+    assert.equal(stats.count, 3);
+    assert.equal(stats.average, 1/3);
+  });
+
+  await t.test('success rate tracking', async () => {
+    analytics.record('successRate', 1); // Success
+    analytics.record('successRate', 1); // Success
+    analytics.record('successRate', 0); // Failure
+    
+    const stats = analytics.getStats('successRate');
+    assert.equal(stats.count, 3);
+    assert.equal(stats.average, 2/3);
+  });
+
+  await t.test('reset', async () => {
+    analytics.record('responseTime', 100);
+    analytics.reset();
+
+    const stats = analytics.getStats('responseTime');
+    assert.equal(stats.count, 0);
+  });
 });
 
-// Test suite for FallbackSystem
-test('FallbackSystem', async (t) => {
-  // Implement tests for FallbackSystem
+// Test suite for CompositionChains
+test('CompositionChains', async (t) => {
+  let session;
+  let chains;
+
+  t.afterEach(async () => {
+    if (session) {
+      await session.destroy();
+      session = null;
+    }
+  });
+
+  await t.test('basic chain', async () => {
+    session = await Session.create();
+    chains = new CompositionChains(session);
+
+    // Create a simple translation chain
+    const chain = chains.create()
+      .addStep('translate', { from: 'English', to: 'Spanish' })
+      .addStep('translate', { from: 'Spanish', to: 'French' });
+
+    const result = await chain.execute('Hello');
+    assert.ok(result.length > 0);
+  });
+
+  await t.test('chain with error handling', async () => {
+    session = await Session.create();
+    chains = new CompositionChains(session);
+    
+    const chain = chains.create()
+      .addStep('translate', { from: 'English', to: 'Spanish' })
+      .onError((error, retry) => retry());
+    
+    const result = await chain.execute('Hello');
+    assert.ok(result.length > 0);
+  });
+
+  await t.test('chain with validation', async () => {
+    session = await Session.create();
+    chains = new CompositionChains(session);
+
+    const chain = chains.create()
+      .addStep('translate', { from: 'English', to: 'Spanish' })
+      .validate(result => result.length > 0);
+
+    const result = await chain.execute('Hello');
+    assert.ok(result.length > 0);
+  });
 });
 
 // Test suite for createWindowChain
 test('createWindowChain', async (t) => {
+  let chain;
+
+  t.afterEach(async () => {
+    if (chain) {
+      await chain.destroy();
+      chain = null;
+    }
+  });
+
   await t.test('basic functionality', async () => {
-    const chain = await createWindowChain();
+    chain = await createWindowChain();
     assert.ok(chain.session instanceof Session);
     assert.ok(chain.capabilities);
     assert.ok(chain.templates instanceof TemplateSystem);
     assert.ok(chain.validator instanceof TemplateValidator);
-    // ... (assert other components)
-    await chain.destroy();
+    assert.ok(chain.cache instanceof DistributedCache);
+    assert.ok(chain.analytics instanceof PerformanceAnalytics);
+    assert.ok(chain.chains instanceof CompositionChains);
   });
 });

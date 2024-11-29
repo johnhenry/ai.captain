@@ -1,5 +1,5 @@
 /**
- * Enhanced template system with inheritance and validation
+ * Template system for Window.ai prompts
  */
 export class TemplateSystem {
   constructor(session) {
@@ -12,29 +12,43 @@ export class TemplateSystem {
    * Register a new template
    * @param {string} name Template name
    * @param {string} content Template content
-   * @param {Object} options Template options
+   * @param {Object|string} options Template options or parent template name
    */
   register(name, content, options = {}) {
-    const template = {
+    // Handle template inheritance
+    if (typeof options === 'string') {
+      const parentName = options;
+      const defaults = arguments[3] || {};
+      const parentTemplate = this.templates.get(parentName);
+      if (!parentTemplate) {
+        throw new Error(`Parent template "${parentName}" not found`);
+      }
+
+      // Create new template with parent's content and default values
+      const template = {
+        content: parentTemplate.content,
+        variables: parentTemplate.variables,
+        defaults
+      };
+
+      this.templates.set(name, template);
+      this.inheritance.set(name, parentName);
+      return;
+    }
+
+    // Direct template registration
+    this.templates.set(name, {
       content,
       variables: this._extractVariables(content),
-      parent: options.extends,
-      validation: options.validation || {},
-      formatters: options.formatters || {},
-      version: options.version || '1.0.0'
-    };
-
-    this.templates.set(name, template);
-    if (template.parent) {
-      this.inheritance.set(name, template.parent);
-    }
+      defaults: options
+    });
   }
 
   /**
    * Apply a template with given variables
    * @param {string} name Template name
    * @param {Object} variables Template variables
-   * @returns {string} Processed template
+   * @returns {Promise<string>} Processed template
    */
   async apply(name, variables = {}) {
     const template = this.templates.get(name);
@@ -42,21 +56,21 @@ export class TemplateSystem {
       throw new Error(`Template "${name}" not found`);
     }
 
-    // Get inherited content
-    let content = template.content;
-    if (template.parent) {
-      const parentContent = await this.apply(template.parent, variables);
-      content = this._mergeTemplates(parentContent, content);
+    // Combine defaults with provided variables
+    const finalVars = {
+      ...(template.defaults || {}),
+      ...variables
+    };
+
+    // Validate all required variables are present
+    for (const varName of template.variables) {
+      if (finalVars[varName] === undefined) {
+        throw new Error(`Missing required parameter: ${varName}`);
+      }
     }
 
-    // Validate variables
-    this._validateVariables(template, variables);
-
-    // Apply formatters
-    const formattedVars = this._applyFormatters(template, variables);
-
-    // Replace variables
-    return this._replaceVariables(content, formattedVars);
+    // Replace variables in template
+    return this._replaceVariables(template.content, finalVars);
   }
 
   /**
@@ -69,76 +83,12 @@ export class TemplateSystem {
   }
 
   /**
-   * Validate variables against template schema
-   * @private
-   */
-  _validateVariables(template, variables) {
-    for (const [key, schema] of Object.entries(template.validation)) {
-      const value = variables[key];
-      
-      if (schema.required && value === undefined) {
-        throw new Error(`Missing required variable "${key}"`);
-      }
-
-      if (value !== undefined) {
-        if (schema.type && typeof value !== schema.type) {
-          throw new Error(`Invalid type for "${key}": expected ${schema.type}`);
-        }
-
-        if (schema.pattern && !new RegExp(schema.pattern).test(value)) {
-          throw new Error(`Invalid format for "${key}"`);
-        }
-
-        if (schema.validate && !schema.validate(value)) {
-          throw new Error(`Validation failed for "${key}"`);
-        }
-      }
-    }
-  }
-
-  /**
-   * Apply formatters to variables
-   * @private
-   */
-  _applyFormatters(template, variables) {
-    const formatted = { ...variables };
-    
-    for (const [key, formatter] of Object.entries(template.formatters)) {
-      if (formatted[key] !== undefined) {
-        formatted[key] = formatter(formatted[key]);
-      }
-    }
-
-    return formatted;
-  }
-
-  /**
    * Replace variables in template content
    * @private
    */
   _replaceVariables(content, variables) {
     return content.replace(/\{([^}]+)\}/g, (match, key) => {
       return variables[key] === undefined ? match : variables[key];
-    });
-  }
-
-  /**
-   * Merge parent and child templates
-   * @private
-   */
-  _mergeTemplates(parent, child) {
-    // Simple block-based inheritance
-    const blocks = {};
-    
-    // Extract blocks from child
-    child = child.replace(/\{% block ([^%]+) %\}([\s\S]*?)\{% endblock %\}/g, (_, name, content) => {
-      blocks[name] = content.trim();
-      return `{block:${name}}`;
-    });
-
-    // Replace blocks in parent
-    return parent.replace(/\{% block ([^%]+) %\}([\s\S]*?)\{% endblock %\}/g, (_, name, defaultContent) => {
-      return blocks[name] || defaultContent.trim();
     });
   }
 }

@@ -69,30 +69,11 @@ export class Session {
    * Send a prompt to the Window.ai session and receive a streaming response
    * @param {string} text Prompt text
    * @param {Object} options Configuration options
-   * @returns {Promise<AsyncGenerator>} AsyncGenerator of responses from Window.ai
+   * @returns {Promise<ReadableStream>} ReadableStream of responses from Window.ai
    */
   async promptStreaming(text, options = {}) {
-    const stream = await this.#session.promptStreaming(text, options);
-    
-    // Return an async generator that properly handles chunks
-    return (async function* () {
-      try {
-        for await (const chunk of stream) {
-          // Handle different chunk formats
-          if (chunk && typeof chunk === 'object') {
-            const content = chunk.content || chunk.text || '';
-            if (content) {
-              yield content;  // Yield string directly
-            }
-          } else if (typeof chunk === 'string') {
-            yield chunk;  // Yield string directly
-          }
-        }
-      } catch (error) {
-        console.error('Error in promptStreaming:', error);
-        throw error;
-      }
-    })();
+    // Return the ReadableStream directly as required by the API spec
+    return this.#session.promptStreaming(text, options);
   }
 
   /**

@@ -1,13 +1,23 @@
 // Mock implementation of window.ai API
 
 // Constants for the mock implementation
-const MOCK_MAX_TOKENS = 4096;
-const MOCK_PER_PROMPT_LIMIT = 1024;
+const MOCK_MAX_TOKENS = 4096;  // Session can retain last 4,096 tokens
+const MOCK_PER_PROMPT_LIMIT = 1024;  // Per prompt limit of 1,024 tokens
 const MOCK_CAPABILITIES = {
   available: 'readily',
   defaultTopK: 3,
   maxTopK: 8,
   defaultTemperature: 1.0
+};
+
+// Helper function to count tokens (simple approximation)
+const countTokens = (text) => Math.ceil(text.length / 4);  // 1 token per ~4 characters
+
+// Helper function to validate temperature
+const validateTemperature = (temp) => {
+  if (temp < 0.0 || temp > 2.0) {
+    throw new Error('Temperature must be between 0.0 and 2.0');
+  }
 };
 
 // Mock session class implementing AILanguageModelSession
@@ -21,22 +31,42 @@ class MockAILanguageModelSession {
   #signal;
 
   constructor(options = {}) {
-    this.#systemPrompt = options.systemPrompt || '';
-    this.#temperature = options.temperature ?? MOCK_CAPABILITIES.defaultTemperature;
-    this.#topK = options.topK ?? MOCK_CAPABILITIES.defaultTopK;
-    this.#signal = options.signal;
-
-    // Initialize conversation history with initial prompts if provided
-    if (options.initialPrompts) {
-      this.#conversationHistory = [...options.initialPrompts];
+    // Validate temperature if provided
+    if (options.temperature !== undefined) {
+      validateTemperature(options.temperature);
+      this.#temperature = options.temperature;
+    } else {
+      this.#temperature = MOCK_CAPABILITIES.defaultTemperature;
     }
 
-    // Add system prompt to history if provided
-    if (this.#systemPrompt) {
-      this.#conversationHistory.unshift({
+    // Validate topK if provided
+    if (options.topK !== undefined) {
+      if (options.topK > MOCK_CAPABILITIES.maxTopK) {
+        throw new Error(`topK cannot exceed ${MOCK_CAPABILITIES.maxTopK}`);
+      }
+      this.#topK = options.topK;
+    } else {
+      this.#topK = MOCK_CAPABILITIES.defaultTopK;
+    }
+
+    this.#signal = options.signal;
+
+    // Initialize conversation history with system prompt if provided
+    if (options.systemPrompt) {
+      this.#systemPrompt = options.systemPrompt;
+      this.#conversationHistory.push({
         role: 'system',
-        content: this.#systemPrompt
+        content: options.systemPrompt
       });
+      this.#tokensSoFar += countTokens(options.systemPrompt);
+    }
+
+    // Add initial prompts if provided
+    if (options.initialPrompts) {
+      for (const prompt of options.initialPrompts) {
+        this.#conversationHistory.push(prompt);
+        this.#tokensSoFar += countTokens(prompt.content);
+      }
     }
   }
 
@@ -59,19 +89,24 @@ class MockAILanguageModelSession {
   }
 
   #checkSignal(signal) {
-    if (signal?.aborted) {
+    if (signal?.aborted || this.#signal?.aborted) {
       throw new DOMException('Operation was aborted', 'AbortError');
     }
   }
 
   #mockResponse(prompt) {
-    // Simple mock response generation
+    // Simple mock response generation based on conversation history
     const responses = {
       'Tell me a joke': "Why don't scientists trust atoms? Because they make up everything!",
       'What is the capital of Italy?': 'The capital of Italy is Rome.',
       'Write me a poem!': 'Roses are red\nViolets are blue\nThis is a mock\nJust testing with you!',
-      'default': "I'm a mock AI assistant. I understand your prompt was: " + prompt
+      'default': `I'm a mock AI assistant. I understand your prompt was: ${prompt}`
     };
+
+    // Consider system prompt in response if set
+    if (this.#systemPrompt && this.#systemPrompt.includes('translator')) {
+      return `Translated: ${prompt}`;
+    }
 
     return responses[prompt] || responses.default;
   }
@@ -79,112 +114,86 @@ class MockAILanguageModelSession {
   async prompt(text, options = {}) {
     this.#checkDestroyed();
     this.#checkSignal(options.signal);
-    this.#checkSignal(this.#signal);
 
-    // Simulate token counting
-    const promptTokens = Math.ceil(text.length / 4);
+    // Count tokens for the prompt
+    const promptTokens = countTokens(text);
     if (promptTokens > MOCK_PER_PROMPT_LIMIT) {
       throw new Error('Prompt exceeds token limit');
     }
 
-    this.#tokensSoFar += promptTokens;
-    if (this.#tokensSoFar > this.maxTokens) {
+    // Generate response
+    const response = this.#mockResponse(text);
+    const responseTokens = countTokens(response);
+
+    // Check if total tokens would exceed limit
+    const totalNewTokens = promptTokens + responseTokens;
+    if (this.#tokensSoFar + totalNewTokens > this.maxTokens) {
       throw new Error('Session token limit exceeded');
     }
 
-    // Add user prompt to history
+    // Add user prompt to history and count its tokens
     this.#conversationHistory.push({
       role: 'user',
       content: text
     });
+    this.#tokensSoFar += promptTokens;
 
-    // Generate response
-    const response = this.#mockResponse(text);
-
-    // Add response to history
+    // Add response to history and count its tokens
     this.#conversationHistory.push({
       role: 'assistant',
       content: response
     });
+    this.#tokensSoFar += responseTokens;
 
     return response;
   }
 
-  async *#generateStreamingResponse(text, options) {
-    const response = this.#mockResponse(text);
-    const chunks = response.split(' ');
-
-    for (let i = 0; i < chunks.length; i++) {
-      // Check for signal abort before yielding each chunk
-      if (options.signal?.aborted || this.#signal?.aborted) {
-        return; // Stop the generator if signal is aborted
-      }
-
-      const chunk = chunks[i] + (i < chunks.length - 1 ? ' ' : '');
-      yield chunk;
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-  }
-
   async promptStreaming(text, options = {}) {
     this.#checkDestroyed();
+    this.#checkSignal(options.signal);
 
-    const promptTokens = Math.ceil(text.length / 4);
+    // Count tokens for the prompt
+    const promptTokens = countTokens(text);
     if (promptTokens > MOCK_PER_PROMPT_LIMIT) {
       throw new Error('Prompt exceeds token limit');
     }
 
-    this.#tokensSoFar += promptTokens;
-    if (this.#tokensSoFar > this.maxTokens) {
+    // Generate response
+    const response = this.#mockResponse(text);
+    const responseTokens = countTokens(response);
+
+    // Check if total tokens would exceed limit
+    const totalNewTokens = promptTokens + responseTokens;
+    if (this.#tokensSoFar + totalNewTokens > this.maxTokens) {
       throw new Error('Session token limit exceeded');
     }
 
-    // Add user prompt to history
+    // Add user prompt to history and count its tokens
     this.#conversationHistory.push({
       role: 'user',
       content: text
     });
+    this.#tokensSoFar += promptTokens;
 
-    // Return a promise that resolves with the stream or rejects with an AbortError
-    return new Promise((resolve, reject) => {
-      const self = this;
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            const generator = self.#generateStreamingResponse(text, options);
-            let fullResponse = '';
+    const self = this;
+    // Create ReadableStream for response
+    return new ReadableStream({
+      async pull(controller) {
+        try {
+          self.#checkSignal(options.signal);
+          
+          // Add response to history and count its tokens
+          self.#conversationHistory.push({
+            role: 'assistant',
+            content: response
+          });
+          self.#tokensSoFar += responseTokens;
 
-            for await (const chunk of generator) {
-              controller.enqueue(chunk);
-              fullResponse += chunk;
-            }
-
-            // Add complete response to history
-            self.#conversationHistory.push({
-              role: 'assistant',
-              content: fullResponse
-            });
-
-            controller.close();
-          } catch (error) {
-            controller.error(error);
-          }
-        },
-        cancel(reason) {
-          if (reason instanceof DOMException && reason.name === 'AbortError') {
-            reject(reason); // Reject the promise with the AbortError
-          } else {
-            reject(new Error('Stream cancelled'));
-          }
+          controller.enqueue(response);
+          controller.close();
+        } catch (error) {
+          controller.error(error);
         }
-      });
-
-      // If the signal is already aborted, reject the promise immediately
-      if (options.signal?.aborted || this.#signal?.aborted) {
-        reject(new DOMException('Operation was aborted', 'AbortError'));
-      } else {
-        resolve(stream);
       }
     });
   }
@@ -218,16 +227,10 @@ const mockLanguageModel = {
       const monitor = {
         addEventListener: (event, callback) => {
           if (event === 'downloadprogress') {
-            // Simulate download progress
-            const total = 1000000;
-            let loaded = 0;
-            const interval = setInterval(() => {
-              loaded += 100000;
-              callback({ loaded, total });
-              if (loaded >= total) {
-                clearInterval(interval);
-              }
-            }, 100);
+            // Simple synchronous progress simulation
+            for (let loaded = 0; loaded <= 1000000; loaded += 100000) {
+              callback({ loaded, total: 1000000 });
+            }
           }
         }
       };
