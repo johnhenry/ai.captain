@@ -1,5 +1,6 @@
-// Advanced template processing
+// Advanced template processing for dynamic prompt generation with validation and formatting
 function createAdvancedTemplate(template, schema = {}) {
+  // Built-in validators for common data types and formats
   const validators = {
     string: (value) => typeof value === "string",
     number: (value) => typeof value === "number",
@@ -9,6 +10,7 @@ function createAdvancedTemplate(template, schema = {}) {
     url: (value) => /^https?:\/\/.*/.test(value),
   };
 
+  // Built-in formatters for data transformation
   const formatters = {
     lowercase: (value) => value.toLowerCase(),
     uppercase: (value) => value.toUpperCase(),
@@ -18,6 +20,7 @@ function createAdvancedTemplate(template, schema = {}) {
     date: (value) => new Date(value).toISOString(),
   };
 
+  // Returns a function that processes values according to schema and applies them to template
   return (values) => {
     const processed = {};
 
@@ -33,7 +36,7 @@ function createAdvancedTemplate(template, schema = {}) {
         }
       }
 
-      // Validate
+      // Validate value against schema
       if (value !== undefined) {
         if (config.type && !validators[config.type](value)) {
           throw new Error(`Invalid type for ${key}: expected ${config.type}`);
@@ -43,7 +46,7 @@ function createAdvancedTemplate(template, schema = {}) {
         }
       }
 
-      // Format
+      // Apply formatting if specified
       if (value !== undefined && config.format) {
         const formatter =
           typeof config.format === "function"
@@ -57,69 +60,79 @@ function createAdvancedTemplate(template, schema = {}) {
       processed[key] = value;
     }
 
+    // Replace template placeholders with processed values
     return template.replace(/\{([^}]+)\}/g, (_, key) => {
       return processed[key] === undefined ? `{${key}}` : processed[key];
     });
   };
 }
 
-// Progress tracking
+// Progress tracking for long-running operations
 function createProgressTracker() {
   const listeners = new Set();
   let progress = 0;
   let total = 0;
 
   return {
+    // Register callback for progress updates
     onProgress(callback) {
       listeners.add(callback);
       return () => listeners.delete(callback);
     },
+    // Update progress and notify listeners
     update(current, newTotal = total) {
       progress = current;
       total = newTotal;
       listeners.forEach((listener) => listener({ progress, total }));
     },
+    // Get current progress state
     get progress() {
       return { progress, total };
     },
   };
 }
 
-// Token counting and management
+// Token counting and management for LLM context windows
 function createTokenCounter(maxTokens = 4096) {
   let usedTokens = 0;
 
-  // Very rough estimation - could be replaced with proper tokenizer
+  // Simple token estimation - can be replaced with more accurate tokenizer
   const estimateTokens = (text) => Math.ceil(text.length / 4);
 
   return {
+    // Track tokens used by text
     track(text) {
       const tokens = estimateTokens(text);
       usedTokens += tokens;
       return tokens;
     },
+    // Reset token count
     reset() {
       usedTokens = 0;
     },
+    // Get remaining tokens
     get remaining() {
       return maxTokens - usedTokens;
     },
+    // Get used tokens
     get used() {
       return usedTokens;
     },
+    // Check if adding text would exceed token limit
     wouldExceedLimit(text) {
       return usedTokens + estimateTokens(text) > maxTokens;
     },
   };
 }
 
-// Caching
+// Simple caching mechanism for LLM responses
 function createCache(options = {}) {
   const cache = new Map();
   const ttl = options.ttl || 5 * 60 * 1000; // 5 minutes default
   const maxSize = options.maxSize || 100;
 
   return {
+    // Get cached value if not expired
     async get(key) {
       const item = cache.get(key);
       if (!item) return undefined;
@@ -129,9 +142,10 @@ function createCache(options = {}) {
       }
       return item.value;
     },
+    // Set cache value with TTL
     async set(key, value) {
       if (cache.size >= maxSize) {
-        // Remove oldest entry
+        // Remove oldest entry when cache is full
         const firstKey = cache.keys().next().value;
         cache.delete(firstKey);
       }
@@ -140,13 +154,14 @@ function createCache(options = {}) {
         expires: Date.now() + ttl,
       });
     },
+    // Clear all cached values
     clear() {
       cache.clear();
     },
   };
 }
 
-// Additional composition patterns
+// Parallel execution of multiple functions
 function parallel(fns) {
   return async (input) => {
     const results = await Promise.all(fns.map((fn) => fn(input)));
@@ -154,6 +169,7 @@ function parallel(fns) {
   };
 }
 
+// Conditional branching based on runtime conditions
 function branch(condition, ifTrue, ifFalse) {
   return async (input) => {
     const shouldBranch = await (typeof condition === "function"
@@ -163,10 +179,12 @@ function branch(condition, ifTrue, ifFalse) {
   };
 }
 
+// Retry mechanism with configurable attempts
 function retry(fn, options = {}) {
   return withRetry(fn, options);
 }
 
+// Error handling wrapper
 function catchError(fn, handler) {
   return async (input) => {
     try {
@@ -177,7 +195,7 @@ function catchError(fn, handler) {
   };
 }
 
-// Enhanced prompting with all utilities
+// Enhanced prompting with caching, progress tracking, and token management
 async function enhancedPrompt(model, input, options = {}) {
   const {
     cache,
@@ -225,6 +243,7 @@ async function enhancedPrompt(model, input, options = {}) {
   return result;
 }
 
+// Create and configure window.ai model instance
 async function createModel(config = {}) {
   const capabilities = await checkModelCapabilities();
   if (!capabilities.isAvailable) {
@@ -237,6 +256,7 @@ async function createModel(config = {}) {
     format: config.format,
   };
 
+  // Add download progress monitoring if needed
   if (capabilities.needsDownload && config.onDownloadProgress) {
     modelConfig.monitor = (m) => {
       m.addEventListener("downloadprogress", config.onDownloadProgress);
@@ -246,7 +266,7 @@ async function createModel(config = {}) {
   return await window.ai.languageModel.create(modelConfig);
 }
 
-// Message formatting
+// Format messages for chat-style interactions
 function formatMessages(messages) {
   return messages
     .map((msg) => {
@@ -259,7 +279,7 @@ function formatMessages(messages) {
     .join("\n");
 }
 
-// Model initialization and capabilities
+// Check window.ai model capabilities and availability
 async function checkModelCapabilities() {
   const capabilities = await window.ai.languageModel.capabilities();
   return {
@@ -271,7 +291,7 @@ async function checkModelCapabilities() {
   };
 }
 
-// Template processing
+// Simple template processing
 function createTemplate(template, variables = []) {
   return (values) => {
     let result = template;
@@ -285,6 +305,7 @@ function createTemplate(template, variables = []) {
   };
 }
 
+// Chat message template processing
 function createMessageTemplate(messages, variables = []) {
   return (values) => {
     return messages.map(([role, content]) => {
@@ -299,7 +320,7 @@ function createMessageTemplate(messages, variables = []) {
   };
 }
 
-// Prompt execution
+// Core prompt execution
 async function prompt(model, input, options = {}) {
   try {
     const response = await model.prompt(
@@ -324,7 +345,7 @@ async function prompt(model, input, options = {}) {
   }
 }
 
-// Streaming utilities
+// Streaming prompt execution
 async function* streamPrompt(model, input, options = {}) {
   const stream = await model.promptStreaming(
     typeof input === "string" ? input : formatMessages(input),
@@ -353,11 +374,12 @@ async function* streamPrompt(model, input, options = {}) {
   }
 }
 
-// Composition helpers
+// Function composition helper
 function pipe(...fns) {
   return (x) => fns.reduce((v, f) => f(v), x);
 }
 
+// Retry wrapper with exponential backoff
 function withRetry(fn, { maxRetries = 3, delay = 1000 } = {}) {
   return async (...args) => {
     let lastError;
@@ -375,7 +397,7 @@ function withRetry(fn, { maxRetries = 3, delay = 1000 } = {}) {
   };
 }
 
-// JSON mode helpers
+// JSON output mode helper
 function withJsonOutput(model, schema) {
   return {
     ...model,
@@ -390,7 +412,7 @@ function withJsonOutput(model, schema) {
   };
 }
 
-// Advanced composition patterns
+// Advanced composition pattern builder
 function createCompositionBuilder() {
   const steps = [];
   let errorHandler = (error) => {
@@ -399,11 +421,13 @@ function createCompositionBuilder() {
   let finalizer = null;
 
   return {
+    // Add function to composition pipeline
     pipe(fn) {
       steps.push(fn);
       return this;
     },
 
+    // Add conditional branching
     branch(condition, ifTrue, ifFalse) {
       steps.push(async (input) => {
         const shouldBranch = await (typeof condition === "function"
@@ -414,6 +438,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add array mapping operation
     map(fn) {
       steps.push(async (input) => {
         if (!Array.isArray(input)) {
@@ -424,6 +449,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add array filtering operation
     filter(predicate) {
       steps.push(async (input) => {
         if (!Array.isArray(input)) {
@@ -440,6 +466,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add retry mechanism to last step
     retry(options = {}) {
       const lastStep = steps[steps.length - 1];
       if (!lastStep) return this;
@@ -448,6 +475,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add timeout to last step
     timeout(ms) {
       steps.push(async (input) => {
         const timeoutPromise = new Promise((_, reject) => {
@@ -458,6 +486,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add debounce to last step
     debounce(ms) {
       let timeout;
       steps.push(async (input) => {
@@ -472,6 +501,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add throttle to last step
     throttle(ms) {
       let lastRun = 0;
       steps.push(async (input) => {
@@ -487,6 +517,7 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Add caching to last step
     cache(options) {
       const cache = createEnhancedCache(options);
       steps.push(async (input) => {
@@ -501,16 +532,19 @@ function createCompositionBuilder() {
       return this;
     },
 
+    // Set error handler
     onError(handler) {
       errorHandler = handler;
       return this;
     },
 
+    // Set finalizer
     finally(fn) {
       finalizer = fn;
       return this;
     },
 
+    // Build and return composed function
     build() {
       return async (input) => {
         try {
@@ -533,7 +567,7 @@ function createCompositionBuilder() {
 
 // Enhanced token estimation using BPE-like approach
 function createEnhancedTokenCounter(maxTokens = 4096) {
-  // Common token patterns
+  // Common token patterns for better estimation
   const patterns = {
     spaces: /\s+/g,
     newlines: /\n+/g,
@@ -656,6 +690,7 @@ function createEnhancedCache(options = {}) {
     }
   }
 
+  // Persist cache to storage
   const persist = () => {
     if (persistent) {
       try {
@@ -672,6 +707,7 @@ function createEnhancedCache(options = {}) {
     }
   };
 
+  // Evict items based on strategy
   const evict = () => {
     if (cache.size <= maxSize) return;
 
