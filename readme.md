@@ -89,6 +89,32 @@ const template = templateSystem.create(
 );
 ```
 
+### Template Inheritance
+
+The template system supports inheritance through a dedicated `inherit` method, allowing you to create specialized templates that build upon base templates. Here's how it works:
+
+1. **Base Template**: Define a base template with placeholders for variables that can be overridden:
+```javascript
+templates.register('base', 'system: {role}\nhuman: {query}');
+```
+
+2. **Derived Template**: Create a specialized template that inherits from the base, providing default values for some variables:
+```javascript
+templates.inherit('translator', 'base', { role: 'You are a translator' });
+```
+
+3. **Using the Template**: When applying the derived template, you only need to provide the remaining variables:
+```javascript
+const result = await templates.apply('translator', { query: 'Translate "hello"' });
+// Results in: "system: You are a translator\nhuman: Translate "hello""
+```
+
+The inheritance system allows you to:
+- Create reusable base templates with common structure
+- Specialize templates by providing default values
+- Override defaults when applying the template
+- Maintain consistent prompt structure across similar use cases
+
 ### Distributed Cache
 
 Efficient caching with compression:

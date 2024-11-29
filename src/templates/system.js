@@ -12,35 +12,33 @@ export class TemplateSystem {
    * Register a new template
    * @param {string} name Template name
    * @param {string} content Template content
-   * @param {Object|string} options Template options or parent template name
+   * @param {Object} [defaults={}] Default values for template variables
    */
-  register(name, content, options = {}) {
-    // Handle template inheritance
-    if (typeof options === 'string') {
-      const parentName = options;
-      const defaults = arguments[3] || {};
-      const parentTemplate = this.templates.get(parentName);
-      if (!parentTemplate) {
-        throw new Error(`Parent template "${parentName}" not found`);
-      }
-
-      // Create new template with parent's content and default values
-      const template = {
-        content: parentTemplate.content,
-        variables: parentTemplate.variables,
-        defaults
-      };
-
-      this.templates.set(name, template);
-      this.inheritance.set(name, parentName);
-      return;
-    }
-
-    // Direct template registration
+  register(name, content, defaults = {}) {
     this.templates.set(name, {
       content,
       variables: this._extractVariables(content),
-      defaults: options
+      defaults
+    });
+  }
+
+  /**
+   * Create a new template that inherits from a parent template
+   * @param {string} name New template name
+   * @param {string} parentName Parent template name
+   * @param {Object} [defaults={}] Default values for template variables
+   */
+  inherit(name, parentName, defaults = {}) {
+    const parentTemplate = this.templates.get(parentName);
+    if (!parentTemplate) {
+      throw new Error(`Parent template "${parentName}" not found`);
+    }
+
+    // Store the inheritance relationship and defaults
+    this.inheritance.set(name, parentName);
+    this.templates.set(name, {
+      defaults,
+      variables: this._extractVariables(parentTemplate.content)
     });
   }
 
@@ -56,7 +54,23 @@ export class TemplateSystem {
       throw new Error(`Template "${name}" not found`);
     }
 
-    // Combine defaults with provided variables
+    // Get parent template if this is an inherited template
+    const parentName = this.inheritance.get(name);
+    if (parentName) {
+      const parentTemplate = this.templates.get(parentName);
+      
+      // Combine parent's content with child's defaults and provided variables
+      const allVariables = {
+        ...(parentTemplate.defaults || {}),
+        ...(template.defaults || {}),
+        ...variables
+      };
+
+      // Replace variables in parent's content
+      return this._replaceVariables(parentTemplate.content, allVariables);
+    }
+
+    // Handle non-inherited template
     const finalVars = {
       ...(template.defaults || {}),
       ...variables
