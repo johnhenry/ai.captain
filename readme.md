@@ -1,19 +1,15 @@
 # Window Chain
 
-Window Chain is a powerful utility library that bridges Window.ai's language model capabilities with LangChain-style patterns and abstractions. It provides a comprehensive set of tools for building robust AI-powered applications using Window.ai's in-browser language models.
+A powerful, modular library for integrating with Window.ai, featuring advanced template processing, caching, composition, and monitoring capabilities.
 
 ## Features
 
-- 🔄 **Advanced Template Processing**: Sophisticated template system with validation and formatting
-- 📊 **Progress Tracking**: Monitor long-running operations
-- 🎯 **Token Management**: Accurate token counting and context window management
-- 💾 **Caching**: Multiple caching strategies with persistence options
-- 🔁 **Composition Patterns**: Rich set of functional composition utilities
-- 🚰 **Streaming**: Efficient streaming of model responses
-- 🛠️ **Error Handling**: Robust error handling
-- 🔀 **Parallel Processing**: Execute multiple operations concurrently
-- 🌳 **Branching Logic**: Conditional execution paths
-- 🔁 **Retry Mechanisms**: Automatic retry with configurable backoff
+- **Session Management**: Robust session handling with Window.ai
+- **Template System**: Advanced template processing with inheritance and validation
+- **Distributed Caching**: Efficient caching with compression support
+- **Function Composition**: Flexible composition patterns for advanced workflows
+- **Performance Monitoring**: Built-in analytics and performance tracking
+- **Fallback System**: Automatic retries and fallback handling
 
 ## Installation
 
@@ -24,137 +20,136 @@ npm install window-chain
 ## Quick Start
 
 ```javascript
-import { createModel, prompt, createTemplate } from "window-chain";
+import { 
+  Session, 
+  TemplateSystem, 
+  CompositionBuilder, 
+  DistributedCache 
+} from 'window-chain';
 
-// Create a model instance
-const model = await createModel({
+// Initialize components
+const session = new Session({ temperature: 0.7 });
+const templates = new TemplateSystem(session);
+const cache = new DistributedCache();
+const composer = new CompositionBuilder(session);
+
+// Create and register template
+const translator = templates.register('translate', [
+  ['system', 'You are a helpful translator.'],
+  ['human', 'Translate "{text}" to {language}.']
+]);
+
+// Create enhanced prompt function
+const translate = composer
+  .withCache(cache)
+  .build(session.prompt.bind(session));
+
+// Use the template
+const result = await translate(
+  await templates.apply('translate', { 
+    text: 'Hello, world!', 
+    language: 'Spanish' 
+  })
+);
+```
+
+## Core Components
+
+### Session
+
+The `Session` class manages interactions with Window.ai:
+
+```javascript
+import { Session } from 'window-chain';
+
+const session = new Session({
   temperature: 0.7,
+  onDownloadProgress: (e) => console.log(`Downloaded: ${e.loaded}/${e.total}`)
 });
 
-// Simple prompt
-const response = await prompt(model, "What is the capital of France?");
-console.log(response.content);
+const response = await session.prompt('Hello!');
+```
 
-// Using templates
-const template = createTemplate("Tell me about {topic}", ["topic"]);
-const result = await prompt(
-  model,
-  template({ topic: "artificial intelligence" })
+### Template System
+
+Create and manage message templates with validation:
+
+```javascript
+import { TemplateSystem, TemplateValidator } from 'window-chain';
+
+const templateSystem = new TemplateSystem();
+const validator = new TemplateValidator({
+  name: 'string',
+  age: 'number'
+});
+
+const template = templateSystem.create(
+  [['human', 'Tell me about {name} who is {age} years old']],
+  ['name', 'age']
 );
+```
+
+### Distributed Cache
+
+Efficient caching with compression:
+
+```javascript
+import { DistributedCache, Session } from 'window-chain';
+
+const cache = new DistributedCache();
+const session = new Session();
+
+const response = await cache.withCache(
+  session.prompt.bind(session)
+)('What is 2+2?');
+```
+
+### Composition
+
+Build complex chains of functionality:
+
+```javascript
+import { 
+  CompositionBuilder, 
+  Session, 
+  PerformanceAnalytics 
+} from 'window-chain';
+
+const session = new Session();
+const analytics = new PerformanceAnalytics();
+const composition = new CompositionBuilder();
+
+const enhancedPrompt = composition
+  .withAnalytics(analytics)
+  .withRetry()
+  .build(session.prompt.bind(session));
+
+const result = await enhancedPrompt('Hello!');
 ```
 
 ## Advanced Usage
 
-### Template Processing
+See our [Advanced Guide](docs/advanced.md) for detailed information about:
+- Template inheritance and validation
+- Distributed caching strategies
+- Custom composition patterns
+- Performance monitoring
+- Error handling and retries
 
-```javascript
-import { createAdvancedTemplate } from "window-chain";
+## Demo
 
-const template = createAdvancedTemplate("Email to: {email} about {subject}", {
-  email: { type: "email", required: true },
-  subject: { type: "string", format: "lowercase" },
-});
-
-const result = template({
-  email: "user@example.com",
-  subject: "MEETING REQUEST",
-}); // "Email to: user@example.com about meeting request"
-```
-
-### Progress Tracking
-
-```javascript
-import { createProgressTracker, enhancedPrompt } from "window-chain";
-
-const tracker = createProgressTracker();
-tracker.onProgress(({ progress, total }) => {
-  console.log(`Progress: ${progress}/${total}`);
-});
-
-const result = await enhancedPrompt(model, input, { progressTracker: tracker });
-```
-
-### Caching
-
-```javascript
-import { createEnhancedCache } from "window-chain";
-
-const cache = createEnhancedCache({
-  ttl: 3600000, // 1 hour
-  maxSize: 1000,
-  strategy: "lru",
-  persistent: true,
-  namespace: "my-app",
-});
-
-const result = await enhancedPrompt(model, input, {
-  cache,
-  cacheKey: "unique-key",
-});
-```
-
-### Composition
-
-```javascript
-import { createCompositionBuilder } from "window-chain";
-
-const pipeline = createCompositionBuilder()
-  .pipe(preprocessInput)
-  .branch(shouldProcessFurther, processMore, skipProcessing)
-  .retry({ maxRetries: 3 })
-  .timeout(5000)
-  .cache({ ttl: 3600000 })
-  .build();
-
-const result = await pipeline(input);
-```
-
-### Streaming
-
-```javascript
-import { streamPrompt } from "window-chain";
-
-const stream = await streamPrompt(model, "Generate a long story");
-for await (const chunk of stream) {
-  console.log(chunk.content);
-}
-```
+Check out our [demo.html](demo.html) for a complete example of:
+- Text translation with retry capability
+- Story generation with streaming
+- Sentiment analysis with JSON output
 
 ## API Reference
 
-### Core Functions
-
-- `createModel(config)`: Create a new Window.ai model instance
-- `prompt(model, input, options)`: Execute a prompt
-- `streamPrompt(model, input, options)`: Stream model responses
-- `enhancedPrompt(model, input, options)`: Advanced prompting with features
-
-### Templates
-
-- `createTemplate(template, variables)`: Simple template processing
-- `createAdvancedTemplate(template, schema)`: Advanced template with validation
-- `createMessageTemplate(messages, variables)`: Chat message templates
-
-### Utilities
-
-- `createProgressTracker()`: Track operation progress
-- `createTokenCounter(maxTokens)`: Manage token usage
-- `createEnhancedTokenCounter(maxTokens)`: Advanced token estimation
-- `createCache(options)`: Simple caching
-- `createEnhancedCache(options)`: Advanced caching with strategies
-
-### Composition
-
-- `pipe(...fns)`: Function composition
-- `parallel(fns)`: Parallel execution
-- `branch(condition, ifTrue, ifFalse)`: Conditional branching
-- `retry(fn, options)`: Retry mechanism
-- `catchError(fn, handler)`: Error handling
-- `createCompositionBuilder()`: Advanced composition patterns
+Detailed API documentation is available in our [API Reference](docs/api.md).
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 

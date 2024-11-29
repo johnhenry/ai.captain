@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WindowChain Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-3xl font-bold mb-8">WindowChain Demo</h1>
+
+      <!-- Model Status -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Model Status</h2>
+        <div id="modelStatus" class="text-gray-600">
+          Checking model availability...
+        </div>
+        <div id="downloadProgress" class="hidden mt-4">
+          <div class="w-full bg-gray-200 rounded-full h-2.5">
+            <div
+              id="downloadBar"
+              class="bg-blue-600 h-2.5 rounded-full"
+              style="width: 0%"
+            ></div>
+          </div>
+          <div id="downloadText" class="text-sm text-gray-500 mt-1"></div>
+        </div>
+      </div>
+
+      <!-- Translation Demo -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Translation Demo</h2>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700"
+              >Text to Translate</label
+            >
+            <input
+              type="text"
+              id="translateText"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+              value="Hello world"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700"
+              >Target Language</label
+            >
+            <select
+              id="translateLang"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+            >
+              <option value="Spanish">Spanish</option>
+              <option value="French">French</option>
+              <option value="German">German</option>
+            </select>
+          </div>
+        </div>
+        <div class="space-x-2">
+          <button
+            id="translateBtn"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Translate
+          </button>
+          <button
+            id="translateWithRetryBtn"
+            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            Translate with Retry
+          </button>
+        </div>
+        <div
+          id="translateOutput"
+          class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap"
+        ></div>
+      </div>
+
+      <!-- Story Generator -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Story Generator</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">Topic</label>
+          <input
+            type="text"
+            id="storyTopic"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+            value="space adventure"
+          />
+        </div>
+        <div class="space-x-2">
+          <button
+            id="generateBtn"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Generate
+          </button>
+          <button
+            id="streamBtn"
+            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            Stream
+          </button>
+          <button
+            id="stopBtn"
+            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            disabled
+          >
+            Stop
+          </button>
+        </div>
+        <div
+          id="storyOutput"
+          class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap"
+        ></div>
+      </div>
+
+      <!-- JSON Output Demo -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">JSON Analysis</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700"
+            >Text for Analysis</label
+          >
+          <textarea
+            id="jsonInput"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+            rows="3"
+          >
+I love this product! It's amazing and has completely changed my life for the better.</textarea
+          >
+        </div>
+        <button
+          id="analyzeBtn"
+          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Analyze Sentiment
+        </button>
+        <div
+          id="jsonOutput"
+          class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap font-mono text-sm"
+        ></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        createAdvancedTemplate,
+        createProgressTracker,
+        createTokenCounter,
+        createCache,
+        pipe,
+        catchError,
+        branch,
+        enhancedPrompt,
+        createModel,
+        createMessageTemplate,
+        streamPrompt,
+        withJsonOutput,
+        prompt,
+        withRetry,
+      } from "./index.mjs";
+
+      // DOM Elements
+      const elements = {
+        modelStatus: document.getElementById("modelStatus"),
+        downloadProgress: document.getElementById("downloadProgress"),
+        downloadBar: document.getElementById("downloadBar"),
+        downloadText: document.getElementById("downloadText"),
+        translateText: document.getElementById("translateText"),
+        translateLang: document.getElementById("translateLang"),
+        translateBtn: document.getElementById("translateBtn"),
+        translateWithRetryBtn: document.getElementById("translateWithRetryBtn"),
+        translateOutput: document.getElementById("translateOutput"),
+        storyTopic: document.getElementById("storyTopic"),
+        generateBtn: document.getElementById("generateBtn"),
+        streamBtn: document.getElementById("streamBtn"),
+        stopBtn: document.getElementById("stopBtn"),
+        storyOutput: document.getElementById("storyOutput"),
+        jsonInput: document.getElementById("jsonInput"),
+        analyzeBtn: document.getElementById("analyzeBtn"),
+        jsonOutput: document.getElementById("jsonOutput"),
+      };
+
+      // Initialize model with progress tracking
+      const model = await createModel({
+        temperature: 0.7,
+        onDownloadProgress: (e) => {
+          elements.downloadProgress.classList.remove("hidden");
+          const percent = Math.round((e.loaded / e.total) * 100);
+          elements.downloadBar.style.width = `${percent}%`;
+          elements.downloadText.textContent = `Downloaded ${e.loaded}/${e.total} bytes`;
+        },
+      });
+
+      elements.modelStatus.textContent = "Model ready!";
+      elements.downloadProgress.classList.add("hidden");
+
+      // Translation setup
+      const translateTemplate = createMessageTemplate(
+        [
+          ["system", "You are a helpful translator."],
+          ["human", "Translate '{text}' to {language}."],
+        ],
+        ["text", "language"]
+      );
+
+      elements.translateBtn.onclick = async () => {
+        elements.translateOutput.textContent = "Translating...";
+        try {
+          const result = await prompt(
+            model,
+            translateTemplate({
+              text: elements.translateText.value,
+              language: elements.translateLang.value,
+            })
+          );
+          elements.translateOutput.textContent = result.content || result;
+        } catch (error) {
+          elements.translateOutput.textContent = `Error: ${error.message}`;
+        }
+      };
+
+      elements.translateWithRetryBtn.onclick = async () => {
+        elements.translateOutput.textContent = "Translating with retry...";
+        try {
+          const robustPrompt = withRetry(prompt);
+          const result = await robustPrompt(
+            model,
+            translateTemplate({
+              text: elements.translateText.value,
+              language: elements.translateLang.value,
+            })
+          );
+          elements.translateOutput.textContent = result.content || result;
+        } catch (error) {
+          elements.translateOutput.textContent = `Error: ${error.message}`;
+        }
+      };
+
+      // Story Generator setup
+      let currentStream = null;
+
+      elements.generateBtn.onclick = async () => {
+        elements.storyOutput.textContent = "Generating story...";
+        try {
+          const result = await prompt(
+            model,
+            `Write a short story about ${elements.storyTopic.value}`
+          );
+          elements.storyOutput.textContent = result;
+        } catch (error) {
+          elements.storyOutput.textContent = `Error: ${error.message}`;
+        }
+      };
+
+      elements.streamBtn.onclick = async () => {
+        elements.storyOutput.textContent = "";
+        elements.streamBtn.disabled = true;
+        elements.stopBtn.disabled = false;
+
+        try {
+          currentStream = streamPrompt(
+            model,
+            `Write a short story about ${elements.storyTopic.value}`
+          );
+          for await (const chunk of currentStream) {
+            if (chunk.content) {
+              elements.storyOutput.textContent += chunk.content;
+            }
+          }
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            elements.storyOutput.textContent += `\nError: ${error.message}`;
+          }
+        } finally {
+          elements.streamBtn.disabled = false;
+          elements.stopBtn.disabled = true;
+          currentStream = null;
+        }
+      };
+
+      elements.stopBtn.onclick = () => {
+        if (currentStream) {
+          currentStream.controller.abort();
+          elements.streamBtn.disabled = false;
+          elements.stopBtn.disabled = true;
+        }
+      };
+
+      // JSON Analysis setup
+      const jsonModel = withJsonOutput(model, {
+        sentiment: "string",
+        confidence: "number",
+        key_points: ["string"],
+      });
+
+      elements.analyzeBtn.onclick = async () => {
+        elements.jsonOutput.textContent = "Analyzing...";
+        try {
+          const systemPrompt =
+            "You are an AI trained to analyze text sentiment and extract key points. Always respond with a JSON object containing 'sentiment' (string), 'confidence' (number between 0-1), and 'key_points' (array of strings).";
+          const userPrompt = `Analyze this text: "${elements.jsonInput.value}"`;
+
+          const result = await prompt(jsonModel, [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ]);
+          elements.jsonOutput.textContent = JSON.stringify(result, null, 2);
+        } catch (error) {
+          elements.jsonOutput.textContent = `Error: ${error.message}`;
+        }
+      };
+    </script>
+  </body>
+</html>

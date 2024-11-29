@@ -12,10 +12,16 @@
 
       <!-- Model Status -->
       <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold mb-4">Model Status</h2>
-        <div id="modelStatus" class="text-gray-600">
-          Checking model availability...
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">Model Status</h2>
+          <button
+            id="resetBtn"
+            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+          >
+            Reset Session
+          </button>
         </div>
+        <p id="modelStatus">Checking model availability...</p>
         <div id="downloadProgress" class="hidden mt-4">
           <div class="w-full bg-gray-200 rounded-full h-2.5">
             <div
@@ -77,44 +83,143 @@
         ></div>
       </div>
 
-      <!-- Story Generator -->
-      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold mb-4">Story Generator</h2>
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700">Topic</label>
-          <input
-            type="text"
-            id="storyTopic"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
-            value="space adventure"
-          />
-        </div>
-        <div class="space-x-2">
-          <button
-            id="generateBtn"
-            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Generate
-          </button>
-          <button
-            id="streamBtn"
-            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-          >
-            Stream
-          </button>
-          <button
-            id="stopBtn"
-            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            disabled
-          >
-            Stop
-          </button>
-        </div>
-        <div
-          id="storyOutput"
-          class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap"
-        ></div>
-      </div>
+
+<!-- Fiction Generator -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+  <h2 class="text-xl font-semibold mb-4">Fiction Generator</h2>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Genre</label>
+    <select
+      id="fictionGenre"
+      class="w-full p-2 border rounded"
+    >
+      <option value="science fiction" selected>Science Fiction</option>
+      <option value="fantasy">Fantasy</option>
+      <option value="mystery">Mystery</option>
+      <option value="romance">Romance</option>
+      <option value="horror">Horror</option>
+      <option value="historical fiction">Historical Fiction</option>
+    </select>
+  </div>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Story Theme</label>
+    <input
+      type="text"
+      id="fictionTheme"
+      class="w-full p-2 border rounded"
+      placeholder="e.g., time travel, artificial intelligence, space exploration"
+      value="artificial intelligence"
+    />
+  </div>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Story Length (words): <span id="fictionLengthDisplay">500</span></label>
+    <input
+      type="range"
+      id="fictionLength"
+      class="w-full"
+      min="100"
+      max="4096"
+      step="100"
+      value="500"
+    />
+  </div>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Writing Style</label>
+    <select
+      id="fictionStyle"
+      class="w-full p-2 border rounded"
+    >
+      <option value="descriptive">Descriptive</option>
+      <option value="minimalist">Minimalist</option>
+      <option value="literary">Literary</option>
+      <option value="experimental">Experimental</option>
+    </select>
+  </div>
+  <button
+    id="generateFictionBtn"
+    class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+  >
+    Generate Story
+  </button>
+  <div
+    id="fictionOutput"
+    class="mt-4 p-4 bg-gray-50 rounded min-h-[200px] whitespace-pre-wrap"
+  ></div>
+</div>
+
+<!-- News Story Generator -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+  <h2 class="text-xl font-semibold mb-4">News Story Generator</h2>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Topic Category</label>
+    <select
+      id="newsCategory"
+      class="w-full p-2 border rounded"
+    >
+      <option value="technology">Technology</option>
+      <option value="science">Science</option>
+      <option value="business">Business</option>
+      <option value="politics">Politics</option>
+      <option value="environment">Environment</option>
+      <option value="health">Health</option>
+    </select>
+  </div>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Headline/Topic</label>
+    <input
+      type="text"
+      id="newsTopic"
+      class="w-full p-2 border rounded"
+      placeholder="Enter a headline or topic for the news story"
+    />
+  </div>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Style</label>
+    <select
+      id="newsStyle"
+      class="w-full p-2 border rounded"
+    >
+      <option value="breaking">Breaking News</option>
+      <option value="investigative">Investigative</option>
+      <option value="feature">Feature Story</option>
+      <option value="opinion">Opinion/Editorial</option>
+    </select>
+  </div>
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+    <select
+      id="newsTone"
+      class="w-full p-2 border rounded"
+    >
+      <option value="neutral">Neutral/Objective</option>
+      <option value="critical">Critical Analysis</option>
+      <option value="optimistic">Optimistic</option>
+      <option value="cautionary">Cautionary</option>
+    </select>
+  </div>
+  <div class="space-x-2">
+    <button
+      id="streamNewsBtn"
+      class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+    >
+      Stream Story
+    </button>
+    <button
+      id="stopNewsBtn"
+      class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+      disabled
+    >
+      Stop
+    </button>
+  </div>
+  <div
+    id="newsOutput"
+    class="mt-4 p-4 bg-gray-50 rounded min-h-[200px] whitespace-pre-wrap"
+  ></div>
+</div>
+
+
+
 
       <!-- JSON Output Demo -->
       <div class="bg-white p-6 rounded-lg shadow-md mb-8">
@@ -127,9 +232,7 @@
             id="jsonInput"
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
             rows="3"
-          >
-I love this product! It's amazing and has completely changed my life for the better.</textarea
-          >
+          >I love this product! It's amazing and has completely changed my life for the better.</textarea>
         </div>
         <button
           id="analyzeBtn"
@@ -142,176 +245,644 @@ I love this product! It's amazing and has completely changed my life for the bet
           class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap font-mono text-sm"
         ></div>
       </div>
+      <!-- Log Container -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Activity Log</h2>
+        <div id="logContainer" class="h-48 overflow-y-auto bg-gray-50 p-4 rounded">
+          <!-- Log entries will be inserted here -->
+        </div>
+      </div>
     </div>
 
     <script type="module">
       import {
-        createAdvancedTemplate,
-        createProgressTracker,
-        createTokenCounter,
-        createCache,
-        pipe,
-        catchError,
-        branch,
-        enhancedPrompt,
-        createModel,
-        createMessageTemplate,
-        streamPrompt,
-        withJsonOutput,
-        prompt,
-        withRetry,
-      } from "./index.mjs";
+        Session,
+        TemplateSystem,
+        DistributedCache,
+        PerformanceAnalytics,
+        CompositionBuilder,
+        CompositionChains
+      } from "./src/index.js";
 
-      // DOM Elements
-      const elements = {
-        modelStatus: document.getElementById("modelStatus"),
-        downloadProgress: document.getElementById("downloadProgress"),
-        downloadBar: document.getElementById("downloadBar"),
-        downloadText: document.getElementById("downloadText"),
-        translateText: document.getElementById("translateText"),
-        translateLang: document.getElementById("translateLang"),
-        translateBtn: document.getElementById("translateBtn"),
-        translateWithRetryBtn: document.getElementById("translateWithRetryBtn"),
-        translateOutput: document.getElementById("translateOutput"),
-        storyTopic: document.getElementById("storyTopic"),
-        generateBtn: document.getElementById("generateBtn"),
-        streamBtn: document.getElementById("streamBtn"),
-        stopBtn: document.getElementById("stopBtn"),
-        storyOutput: document.getElementById("storyOutput"),
-        jsonInput: document.getElementById("jsonInput"),
-        analyzeBtn: document.getElementById("analyzeBtn"),
-        jsonOutput: document.getElementById("jsonOutput"),
+// Helper function for logging
+const log = (message, type = 'info') => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+  console.log(logMessage);
+  
+  // Also display in UI if there's a log container
+  const logContainer = document.getElementById('logContainer');
+  if (logContainer) {
+    const logEntry = document.createElement('div');
+    logEntry.className = `text-sm ${type === 'error' ? 'text-red-600' : 'text-gray-600'}`;
+    logEntry.textContent = logMessage;
+    logContainer.insertBefore(logEntry, logContainer.firstChild);
+    
+    // Keep only last 50 messages
+    while (logContainer.children.length > 50) {
+      logContainer.removeChild(logContainer.lastChild);
+    }
+  }
+};
+// Helper function to handle rate limits
+const handleRateLimit = (error) => {
+  if (error.message.includes('rate limit exceeded')) {
+    const match = error.message.match(/try again in about (\d+)/i);
+    const waitTime = match ? match[1] : '60';
+    const message = `Rate limit exceeded. Please wait ${waitTime} minutes before trying again.`;
+    log(message, 'error');
+    
+    // Update model status to show rate limit
+    elements.modelStatus.textContent = `Rate limited - Please wait ${waitTime} minutes`;
+    elements.modelStatus.className = 'text-red-600';
+    
+    // Set a timer to update the status
+    const waitMs = parseInt(waitTime) * 60 * 1000;
+    setTimeout(() => {
+      elements.modelStatus.textContent = 'Model ready';
+      elements.modelStatus.className = 'text-green-600';
+    }, waitMs);
+    
+    return message;
+  }
+  return error.message;
+};
+
+// Add retry button for rate-limited operations
+const retryWithBackoff = async (operation, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (error.message.includes('rate limit exceeded')) {
+        const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+        log(`Retry attempt ${attempt}/${maxRetries} after ${waitTime/1000}s`, 'info');
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error(`Failed after ${maxRetries} retries`);
+};
+
+// Update model status display
+const updateModelStatus = (status, isError = false) => {
+  elements.modelStatus.textContent = status;
+  elements.modelStatus.className = isError ? 'text-red-600' : 'text-green-600';
+};
+
+// Initialize session with retry
+const initializeSession = async () => {
+  try {
+    updateModelStatus('Initializing model...');
+    session = await Session.create({
+      topK: 1,
+      temperature: 0.7
+    });
+    updateModelStatus('Model ready');
+    log('Session initialized successfully', 'info');
+  } catch (error) {
+    const errorMsg = handleRateLimit(error);
+    updateModelStatus(errorMsg, true);
+    log(`Session initialization failed: ${errorMsg}`, 'error');
+  }
+};
+
+// DOM Elements
+const elements = {
+  modelStatus: document.getElementById("modelStatus"),
+  resetBtn: document.getElementById("resetBtn"),
+  downloadProgress: document.getElementById("downloadProgress"),
+  downloadBar: document.getElementById("downloadBar"),
+  downloadText: document.getElementById("downloadText"),
+  translateText: document.getElementById("translateText"),
+  translateLang: document.getElementById("translateLang"),
+  translateBtn: document.getElementById("translateBtn"),
+  translateWithRetryBtn: document.getElementById("translateWithRetryBtn"),
+  translateOutput: document.getElementById("translateOutput"),
+  // Fiction Generator elements
+  fictionGenre: document.getElementById("fictionGenre"),
+  fictionTheme: document.getElementById("fictionTheme"),
+  fictionLength: document.getElementById("fictionLength"),
+  fictionLengthDisplay: document.getElementById("fictionLengthDisplay"),
+  fictionStyle: document.getElementById("fictionStyle"),
+  generateFictionBtn: document.getElementById("generateFictionBtn"),
+  fictionOutput: document.getElementById("fictionOutput"),
+  // News Generator elements
+  newsCategory: document.getElementById("newsCategory"),
+  newsTopic: document.getElementById("newsTopic"),
+  newsStyle: document.getElementById("newsStyle"),
+  newsTone: document.getElementById("newsTone"),
+  streamNewsBtn: document.getElementById("streamNewsBtn"),
+  stopNewsBtn: document.getElementById("stopNewsBtn"),
+  newsOutput: document.getElementById("newsOutput"),
+  jsonInput: document.getElementById("jsonInput"),
+  analyzeBtn: document.getElementById("analyzeBtn"),
+  jsonOutput: document.getElementById("jsonOutput"),
+};
+
+      // Initialize components
+      let session;
+      let templates;
+      let cache;
+      let analytics;
+      let chains;
+
+      async function initializeComponents() {
+        try {
+          session = await Session.create({
+            topK: 1,
+            temperature: 0.7,
+            onDownloadProgress: (e) => {
+              elements.downloadProgress.classList.remove("hidden");
+              const percent = Math.round((e.loaded / e.total) * 100);
+              elements.downloadBar.style.width = `${percent}%`;
+              elements.downloadText.textContent = `Downloaded ${e.loaded}/${e.total} bytes`;
+            },
+          });
+
+          templates = new TemplateSystem(session);
+          cache = new DistributedCache();
+          analytics = new PerformanceAnalytics();
+          chains = new CompositionChains(session);
+
+          // Update status once Window.ai is ready
+          if (window.ai) {
+            elements.modelStatus.textContent = "Model ready!";
+            elements.downloadProgress.classList.add("hidden");
+          } else {
+            elements.modelStatus.textContent = "Window.ai not available";
+          }
+
+          // Register templates
+          templates.register('translate',
+            'system: You are a helpful translator.\nhuman: Translate "{text}" to {language}."'
+          );
+
+
+          templates.register('sentiment',
+            'system: You analyze sentiment and return JSON.\nhuman: Analyze the sentiment of this text and return a JSON object with "sentiment" (positive/negative/neutral) and "confidence" (0-1): {text}'
+          );
+          templates.register('fiction',
+            'system: You are a creative fiction writer specializing in various genres. Write engaging, well-structured stories that match the requested genre, theme, and style.\nhuman: Write a {genre} story about {theme}. Use a {style} writing style. The story should be exactly {length} words long.'
+          );
+
+          templates.register('news',
+            'system: You are an experienced journalist writing in real-time. Write engaging news stories that follow journalistic best practices. Focus on clarity, accuracy, and the appropriate tone for the story type.\nhuman: Write a {style} news story about {topic} in the category of {category}. Use a {tone} tone. Write this as it would appear in a major news publication.'
+          );
+
+        } catch (error) {
+          elements.modelStatus.textContent = `Error initializing: ${error.message}`;
+          throw error;
+        }
+      }
+
+      // Helper function to wrap cache operations
+      const withCache = async (key, operation) => {
+        const cached = await cache.get(key);
+        if (cached !== undefined) {
+          return cached;
+        }
+        const result = await operation();
+        await cache.set(key, result);
+        return result;
       };
 
-      // Initialize model with progress tracking
-      const model = await createModel({
-        temperature: 0.7,
-        onDownloadProgress: (e) => {
-          elements.downloadProgress.classList.remove("hidden");
-          const percent = Math.round((e.loaded / e.total) * 100);
-          elements.downloadBar.style.width = `${percent}%`;
-          elements.downloadText.textContent = `Downloaded ${e.loaded}/${e.total} bytes`;
-        },
-      });
-
-      elements.modelStatus.textContent = "Model ready!";
-      elements.downloadProgress.classList.add("hidden");
-
-      // Translation setup
-      const translateTemplate = createMessageTemplate(
-        [
-          ["system", "You are a helpful translator."],
-          ["human", "Translate '{text}' to {language}."],
-        ],
-        ["text", "language"]
-      );
-
-      elements.translateBtn.onclick = async () => {
-        elements.translateOutput.textContent = "Translating...";
+      const translate = async (input) => {
+        const start = Date.now();
         try {
-          const result = await prompt(
-            model,
-            translateTemplate({
-              text: elements.translateText.value,
-              language: elements.translateLang.value,
-            })
+          const response = await session.prompt(input);
+          analytics.record('responseTime', Date.now() - start);
+          analytics.record('successRate', 1);
+          return response;
+        } catch (error) {
+          analytics.record('errorRate', 1);
+          throw error;
+        }
+      };
+
+      const translateWithRetry = async (input) => {
+        const start = Date.now();
+        try {
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              const response = await session.prompt(input);
+              analytics.record('responseTime', Date.now() - start);
+              analytics.record('successRate', 1);
+              return response;
+            } catch (error) {
+              if (attempt === 3) throw error;
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+            }
+          }
+        } catch (error) {
+          analytics.record('errorRate', 1);
+          throw error;
+        }
+      };
+
+// Fiction Generator
+const generateFiction = async (input) => {
+  const start = Date.now();
+  try {
+    const response = await session.prompt(input);
+    analytics.record('responseTime', Date.now() - start);
+    analytics.record('successRate', 1);
+    return response;
+  } catch (error) {
+    analytics.record('errorRate', 1);
+    throw error;
+  }
+};
+
+// News Story Generator with streaming
+const streamNews = async function* (input) {
+  log(`Starting news streaming: ${input}`, 'info');
+  try {
+    const stream = await session.promptStreaming(input);
+    log('Stream initialized', 'info');
+    
+    let buffer = '';
+    let chunkCount = 0;
+    
+    for await (const chunk of stream) {
+      chunkCount++;
+      log(`Raw chunk ${chunkCount}: ${typeof chunk}`, 'info');
+      
+      if (chunk === null || chunk === undefined) {
+        continue;
+      }
+      
+      if (typeof chunk === 'string') {
+        const content = chunk.trim();
+        if (content) {
+          buffer += ' ' + content;
+          
+          // Split into sentences for more natural streaming
+          const sentences = buffer.match(/[^.!?]+[.!?]+/g) || [];
+          
+          if (sentences.length > 0) {
+            // Keep the last partial sentence in the buffer
+            buffer = sentences.pop() || '';
+            
+            // Stream complete sentences
+            for (const sentence of sentences) {
+              log(`Streaming sentence: ${sentence.trim()}`, 'info');
+              yield sentence.trim() + ' ';
+            }
+          }
+        }
+      } else {
+        log(`Unexpected chunk type: ${typeof chunk}`, 'warn');
+      }
+    }
+    
+    // Stream any remaining content in the buffer
+    if (buffer.trim()) {
+      log(`Streaming final buffer: ${buffer.trim()}`, 'info');
+      yield buffer.trim();
+    }
+    
+    log(`Stream finished. Total chunks: ${chunkCount}`, 'info');
+  } catch (error) {
+    log(`Streaming error: ${error.message}`, 'error');
+    log(`Error stack: ${error.stack}`, 'error');
+    throw error;
+  }
+};
+
+// Update fiction length display
+elements.fictionLength.oninput = () => {
+  elements.fictionLengthDisplay.textContent = elements.fictionLength.value;
+};
+
+// Fiction Generator handler
+elements.generateFictionBtn.onclick = async () => {
+  setLoading('generateFictionBtn', true);
+  try {
+    const input = await templates.apply('fiction', {
+      genre: elements.fictionGenre.value,
+      theme: elements.fictionTheme.value,
+      length: elements.fictionLength.value,
+      style: elements.fictionStyle.value
+    });
+    
+    log(`Generating fiction with input: ${input}`, 'info');
+    elements.fictionOutput.textContent = await generateFiction(input);
+  } catch (error) {
+    const errorMsg = handleRateLimit(error);
+    elements.fictionOutput.textContent = `Error: ${errorMsg}`;
+  } finally {
+    setLoading('generateFictionBtn', false);
+  }
+};
+
+// News Generator handler
+let currentNewsStream = null;
+
+elements.streamNewsBtn.onclick = async () => {
+  if (elements.modelStatus.textContent.includes('Rate limited')) {
+    log('Cannot stream while rate limited', 'error');
+    return;
+  }
+
+  setLoading('streamNewsBtn', true);
+  elements.stopNewsBtn.disabled = false;
+  elements.newsOutput.textContent = "";
+
+  try {
+    const input = await templates.apply('news', {
+      category: elements.newsCategory.value,
+      topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
+      style: elements.newsStyle.value,
+      tone: elements.newsTone.value
+    });
+    
+    log(`Streaming news with input: ${input}`, 'info');
+    
+    currentNewsStream = streamNews(input);
+    for await (const content of currentNewsStream) {
+      elements.newsOutput.textContent += content;
+    }
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      const errorMsg = handleRateLimit(error);
+      elements.newsOutput.textContent = `Error: ${errorMsg}`;
+    }
+  } finally {
+    setLoading('streamNewsBtn', false);
+    elements.stopNewsBtn.disabled = true;
+    currentNewsStream = null;
+  }
+};
+
+elements.stopNewsBtn.onclick = () => {
+  if (currentNewsStream) {
+    currentNewsStream.return();
+    setLoading('streamNewsBtn', false);
+    elements.stopNewsBtn.disabled = true;
+  }
+};
+
+      const analyzeSentiment = async (input) => {
+        const start = Date.now();
+        try {
+          const response = await session.prompt(input);
+          analytics.record('responseTime', Date.now() - start);
+          analytics.record('successRate', 1);
+          return JSON.parse(response);
+        } catch (error) {
+          analytics.record('errorRate', 1);
+          throw error;
+        }
+      };
+
+      // Helper function to set loading state
+      const setLoading = (elementId, isLoading) => {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        if (isLoading) {
+          element.disabled = true;
+          element.innerHTML = `<span class="inline-block animate-spin mr-2">⟳</span> ${element.dataset.loadingText || 'Processing...'}`;
+        } else {
+          element.disabled = false;
+          element.innerHTML = element.dataset.originalText || element.innerHTML;
+        }
+      };
+
+      // Store original button text
+      const initializeButtonStates = () => {
+        ['translateBtn', 'translateWithRetryBtn', 'generateFictionBtn', 'streamNewsBtn', 'analyzeBtn'].forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) {
+            btn.dataset.originalText = btn.innerHTML;
+            btn.dataset.loadingText = {
+              'translateBtn': 'Translating...',
+              'translateWithRetryBtn': 'Translating (with retry)...',
+              'generateFictionBtn': 'Generating story...',
+              'streamNewsBtn': 'Streaming story...',
+              'analyzeBtn': 'Analyzing...'
+            }[id];
+          }
+        });
+      };
+
+      // Initialize components before setting up event handlers
+      await initializeComponents();
+      initializeButtonStates();
+
+      // Event handlers
+      elements.translateBtn.onclick = async () => {
+        setLoading('translateBtn', true);
+        const text = elements.translateText.value;
+        const language = elements.translateLang.value;
+        try {
+          const prompt = await templates.apply('translate', { text, language });
+          const cacheKey = `translate:${text}:${language}`;
+          elements.translateOutput.textContent = await withCache(
+            cacheKey,
+            () => translate(prompt)
           );
-          elements.translateOutput.textContent = result.content || result;
         } catch (error) {
           elements.translateOutput.textContent = `Error: ${error.message}`;
+        } finally {
+          setLoading('translateBtn', false);
         }
       };
 
       elements.translateWithRetryBtn.onclick = async () => {
-        elements.translateOutput.textContent = "Translating with retry...";
+        setLoading('translateWithRetryBtn', true);
+        const text = elements.translateText.value;
+        const language = elements.translateLang.value;
         try {
-          const robustPrompt = withRetry(prompt);
-          const result = await robustPrompt(
-            model,
-            translateTemplate({
-              text: elements.translateText.value,
-              language: elements.translateLang.value,
-            })
+          const prompt = await templates.apply('translate', { text, language });
+          const cacheKey = `translate-retry:${text}:${language}`;
+          elements.translateOutput.textContent = await withCache(
+            cacheKey,
+            () => translateWithRetry(prompt)
           );
-          elements.translateOutput.textContent = result.content || result;
         } catch (error) {
           elements.translateOutput.textContent = `Error: ${error.message}`;
+        } finally {
+          setLoading('translateWithRetryBtn', false);
         }
       };
 
-      // Story Generator setup
+      elements.generateFictionBtn.onclick = async () => {
+        setLoading('generateFictionBtn', true);
+        const topic = elements.fictionTheme.value;
+        const length = elements.fictionLength.value;
+        try {
+          const prompt = await templates.apply('fiction', { topic, length, genre: elements.fictionGenre.value, style: elements.fictionStyle.value });
+          const cacheKey = `fiction:${topic}:${length}`;
+          elements.fictionOutput.textContent = await withCache(
+            cacheKey,
+            () => generateFiction(prompt)
+          );
+        } catch (error) {
+          elements.fictionOutput.textContent = `Error: ${error.message}`;
+        } finally {
+          setLoading('generateFictionBtn', false);
+        }
+      };
+
       let currentStream = null;
 
-      elements.generateBtn.onclick = async () => {
-        elements.storyOutput.textContent = "Generating story...";
-        try {
-          const result = await prompt(
-            model,
-            `Write a short story about ${elements.storyTopic.value}`
-          );
-          elements.storyOutput.textContent = result;
-        } catch (error) {
-          elements.storyOutput.textContent = `Error: ${error.message}`;
-        }
-      };
-
-      elements.streamBtn.onclick = async () => {
-        elements.storyOutput.textContent = "";
-        elements.streamBtn.disabled = true;
-        elements.stopBtn.disabled = false;
-
-        try {
-          currentStream = streamPrompt(
-            model,
-            `Write a short story about ${elements.storyTopic.value}`
-          );
-          for await (const chunk of currentStream) {
-            if (chunk.content) {
-              elements.storyOutput.textContent += chunk.content;
+      const streamStory = async function* (input) {
+  log(`Starting story streaming: ${input}`, 'info');
+  try {
+    log('About to call session.promptStreaming...', 'info');
+    const stream = await session.promptStreaming(input);
+    log('Stream initialized', 'info');
+    
+    let buffer = '';
+    let chunkCount = 0;
+    let requestedLength = parseInt(elements.fictionLength.value);
+    
+    for await (const chunk of stream) {
+      chunkCount++;
+      log(`Raw chunk ${chunkCount}: ${typeof chunk}`, 'info');
+      
+      if (chunk === null || chunk === undefined) {
+        continue;
+      }
+      
+      // We should now be receiving strings directly
+      if (typeof chunk === 'string') {
+        const content = chunk.trim();
+        if (content) {
+          buffer += ' ' + content;
+          
+          // Split into sentences for more natural streaming
+          const sentences = buffer.match(/[^.!?]+[.!?]+/g) || [];
+          
+          if (sentences.length > 0) {
+            // Keep the last partial sentence in the buffer
+            buffer = sentences.pop() || '';
+            
+            // Stream complete sentences
+            for (const sentence of sentences) {
+              const sentenceWords = sentence.trim().split(/\s+/).filter(w => w.length > 0);
+              log(`Streaming sentence with ${sentenceWords.length} words`, 'info');
+              yield sentence.trim() + ' ';
             }
           }
-        } catch (error) {
-          if (error.name !== "AbortError") {
-            elements.storyOutput.textContent += `\nError: ${error.message}`;
-          }
-        } finally {
-          elements.streamBtn.disabled = false;
-          elements.stopBtn.disabled = true;
-          currentStream = null;
         }
-      };
+      } else {
+        log(`Unexpected chunk type: ${typeof chunk}`, 'warn');
+      }
+    }
+    
+    // Stream any remaining content in the buffer
+    if (buffer.trim()) {
+      log(`Streaming final buffer: ${buffer.trim()}`, 'info');
+      yield buffer.trim();
+    }
+    
+    log(`Stream finished. Total chunks: ${chunkCount}`, 'info');
+  } catch (error) {
+    log(`Streaming error: ${error.message}`, 'error');
+    log(`Error stack: ${error.stack}`, 'error');
+    throw error;
+  }
+};
 
-      elements.stopBtn.onclick = () => {
+elements.streamNewsBtn.onclick = async () => {
+  if (elements.modelStatus.textContent.includes('Rate limited')) {
+    log('Cannot stream while rate limited', 'error');
+    return;
+  }
+
+  setLoading('streamNewsBtn', true);
+  elements.stopNewsBtn.disabled = false;
+  const topic = elements.newsTopic.value;
+  elements.newsOutput.textContent = "";
+  log(`News story streaming requested for topic: "${topic}"`, 'info');
+
+  try {
+    const input = await templates.apply('news', {
+      category: elements.newsCategory.value,
+      topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
+      style: elements.newsStyle.value,
+      tone: elements.newsTone.value
+    });
+    
+    log(`Template applied: ${input}`, 'info');
+    
+    currentStream = streamNews(input);
+    for await (const content of currentStream) {
+      elements.newsOutput.textContent += content;
+    }
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      const errorMsg = handleRateLimit(error);
+      elements.newsOutput.textContent = `Error: ${errorMsg}`;
+    }
+  } finally {
+    setLoading('streamNewsBtn', false);
+    elements.stopNewsBtn.disabled = true;
+    currentStream = null;
+  }
+};
+
+      elements.stopNewsBtn.onclick = () => {
         if (currentStream) {
-          currentStream.controller.abort();
-          elements.streamBtn.disabled = false;
-          elements.stopBtn.disabled = true;
+          currentStream.return();
+          setLoading('streamNewsBtn', false);
+          elements.stopNewsBtn.disabled = true;
         }
       };
-
-      // JSON Analysis setup
-      const jsonModel = withJsonOutput(model, {
-        sentiment: "string",
-        confidence: "number",
-        key_points: ["string"],
-      });
 
       elements.analyzeBtn.onclick = async () => {
-        elements.jsonOutput.textContent = "Analyzing...";
+        setLoading('analyzeBtn', true);
+        const text = elements.jsonInput.value;
         try {
-          const systemPrompt =
-            "You are an AI trained to analyze text sentiment and extract key points. Always respond with a JSON object containing 'sentiment' (string), 'confidence' (number between 0-1), and 'key_points' (array of strings).";
-          const userPrompt = `Analyze this text: "${elements.jsonInput.value}"`;
-
-          const result = await prompt(jsonModel, [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ]);
-          elements.jsonOutput.textContent = JSON.stringify(result, null, 2);
+          const prompt = await templates.apply('sentiment', { text });
+          const cacheKey = `sentiment:${text}`;
+          elements.jsonOutput.textContent = JSON.stringify(
+            await withCache(cacheKey, () => analyzeSentiment(prompt)),
+            null,
+            2
+          );
         } catch (error) {
           elements.jsonOutput.textContent = `Error: ${error.message}`;
+        } finally {
+          setLoading('analyzeBtn', false);
         }
       };
+
+      // Reset session handler
+      elements.resetBtn.onclick = async () => {
+        log('Resetting session...', 'info');
+        try {
+          if (session) {
+            await session.destroy();
+          }
+          session = await Session.create({
+            topK: 1,
+            temperature: 0.7
+          });
+          log('Session reset successful', 'info');
+          elements.modelStatus.textContent = 'Model ready';
+          
+          // Clear all text boxes
+          elements.translateText.value = "Hello world";  // Reset to default
+          elements.translateOutput.textContent = "";
+          elements.fictionTheme.value = "artificial intelligence";  // Reset to default
+          elements.fictionOutput.textContent = "";
+          elements.jsonInput.value = "I love this product! It's amazing and has completely changed my life for the better.";  // Reset to default
+          elements.jsonOutput.textContent = "";
+          
+        } catch (error) {
+          log(`Session reset failed: ${error.message}`, 'error');
+          elements.modelStatus.textContent = `Error: ${error.message}`;
+        }
+      };
+
+      // Call initialize on load
+      initializeSession();
     </script>
   </body>
 </html>

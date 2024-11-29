@@ -1,12 +1,45 @@
 {
   "name": "window-chain",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Window Chain is a powerful utility library that bridges Window.ai's language model capabilities with LangChain-style patterns and abstractions. It provides a comprehensive set of tools for building robust AI-powered applications using Window.ai's in-browser language models.",
-  "main": "index.mjs",
-  "scripts": {
-    "test": "node --test test/index.mjs"
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./core": "./src/core/index.js",
+    "./templates": "./src/templates/index.js",
+    "./caching": "./src/caching/index.js",
+    "./composition": "./src/composition/index.js",
+    "./monitoring": "./src/monitoring/index.js"
   },
-  "keywords": [],
+  "scripts": {
+    "test": "node --test test/index.mjs",
+    "build": "rollup -c",
+    "lint": "eslint src/",
+    "format": "prettier --write 'src/**/*.js'",
+    "docs": "jsdoc -c jsdoc.json"
+  },
+  "keywords": [
+    "window.ai",
+    "ai",
+    "language-model",
+    "llm",
+    "chain",
+    "composition",
+    "templates",
+    "caching",
+    "streaming"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "eslint": "^8.0.0",
+    "jsdoc": "^4.0.0",
+    "prettier": "^3.0.0",
+    "rollup": "^4.0.0"
+  }
 }
