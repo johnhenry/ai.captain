@@ -23,7 +23,7 @@ Once you have requested permission to use the Prompt API, you can build your ext
 
 The Prompt API uses the Gemini Nano model in Chrome. While the API is built into Chrome, the model is downloaded separately the first time an extension uses the API.
 
-To determine if the model is ready to use, call the asynchronous window.`ai.languageModel.capabilities()` function. It returns an AILanguageModelCapabilities object with an available field that can take three possible values:
+To determine if the model is ready to use, call the asynchronous `window.ai.languageModel.capabilities()` function. It returns an AILanguageModelCapabilities object with an available field that can take three possible values:
 
 - `no`: The current browser supports the Prompt API, but it can't be used at the moment. This could be for a number of reasons, such as insufficient available disk space available to download the model.
 - `readily`: The current browser supports the Prompt API, and it can be used right away.
