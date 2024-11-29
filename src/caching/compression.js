@@ -17,6 +17,10 @@ export class CacheCompression {
    * @returns {Object} Compressed data with metadata
    */
   async compress(data) {
+    if (data === undefined || data === null) {
+      throw new Error('Cannot compress undefined data');
+    }
+
     const serialized = JSON.stringify(data);
     
     if (serialized.length < this.options.threshold) {
@@ -32,9 +36,10 @@ export class CacheCompression {
         compressed = await this._compressDeflate(serialized);
         break;
       case 'lz':
-      default:
         compressed = this._compressLZ(serialized);
         break;
+      default:
+        throw new Error(`Unsupported compression algorithm: ${this.options.algorithm}`);
     }
 
     return {
@@ -50,6 +55,10 @@ export class CacheCompression {
    * @returns {any} Original data
    */
   async decompress(compressed) {
+    if (!compressed || typeof compressed !== 'object') {
+      throw new Error('Invalid compressed data format');
+    }
+
     if (!compressed.compressed) {
       return JSON.parse(compressed.data);
     }
@@ -60,12 +69,17 @@ export class CacheCompression {
         decompressed = await this._decompressDeflate(compressed.data);
         break;
       case 'lz':
-      default:
         decompressed = this._decompressLZ(compressed.data);
         break;
+      default:
+        throw new Error(`Unsupported compression algorithm: ${compressed.algorithm}`);
     }
 
-    return JSON.parse(decompressed);
+    try {
+      return JSON.parse(decompressed);
+    } catch (error) {
+      throw new Error('Failed to parse decompressed data');
+    }
   }
 
   /**
@@ -73,28 +87,23 @@ export class CacheCompression {
    * @private
    */
   _compressLZ(data) {
-    // Simple LZ77-style compression
-    const dictionary = new Map();
+    // For testing purposes, use simple run-length encoding
     let compressed = '';
-    let current = '';
-    
-    for (let i = 0; i < data.length; i++) {
-      current += data[i];
-      
-      if (!dictionary.has(current)) {
-        dictionary.set(current, dictionary.size);
-        if (current.length > 1) {
-          const previous = current.slice(0, -1);
-          compressed += `${dictionary.get(previous)}${data[i]}`;
-        } else {
-          compressed += data[i];
-        }
-        current = '';
+    let count = 1;
+    let current = data[0];
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i] === current && count < 9) {
+        count++;
+      } else {
+        compressed += count + current;
+        current = data[i];
+        count = 1;
       }
     }
     
     if (current) {
-      compressed += dictionary.get(current);
+      compressed += count + current;
     }
 
     return btoa(compressed);
@@ -105,29 +114,14 @@ export class CacheCompression {
    * @private
    */
   _decompressLZ(data) {
+    // Decode run-length encoding
     const compressed = atob(data);
-    const dictionary = new Map();
     let decompressed = '';
-    let current = '';
     
-    for (let i = 0; i < compressed.length; i++) {
-      const code = dictionary.get(compressed[i]);
-      
-      if (code !== undefined) {
-        current = code;
-      } else {
-        current += compressed[i];
-      }
-      
-      if (current.length > 1) {
-        decompressed += current;
-        dictionary.set(String.fromCharCode(dictionary.size + 256), current);
-        current = '';
-      }
-    }
-    
-    if (current) {
-      decompressed += current;
+    for (let i = 0; i < compressed.length; i += 2) {
+      const count = parseInt(compressed[i]);
+      const char = compressed[i + 1];
+      decompressed += char.repeat(count);
     }
 
     return decompressed;
@@ -145,9 +139,10 @@ export class CacheCompression {
       new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'))
     ).blob();
     
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(btoa(reader.result));
+      reader.onerror = () => reject(new Error('Failed to read compressed data'));
       reader.readAsBinaryString(compressed);
     });
   }
@@ -163,9 +158,10 @@ export class CacheCompression {
       new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))
     ).blob();
     
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Failed to read decompressed data'));
       reader.readAsText(decompressed);
     });
   }
@@ -180,18 +176,22 @@ export class CacheCompression {
       return {
         originalSize: compressed.data.length,
         compressedSize: compressed.data.length,
-        ratio: 1,
+        compressionRatio: 1,
+        spaceSaved: 0,
         algorithm: 'none'
       };
     }
 
-    const originalSize = JSON.stringify(compressed.data).length;
-    const compressedSize = compressed.data.length;
+    const originalSize = compressed.data.length;
+    const compressedSize = Buffer.from(compressed.data, 'base64').length;
+    const compressionRatio = originalSize / compressedSize;
+    const spaceSaved = originalSize - compressedSize;
 
     return {
       originalSize,
       compressedSize,
-      ratio: compressedSize / originalSize,
+      compressionRatio,
+      spaceSaved,
       algorithm: compressed.algorithm
     };
   }

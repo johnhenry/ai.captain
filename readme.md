@@ -28,16 +28,16 @@ import {
 } from 'window-chain';
 
 // Initialize components
-const session = new Session({ temperature: 0.7 });
+const session = await Session.create({ temperature: 0.7 });
 const templates = new TemplateSystem(session);
 const cache = new DistributedCache();
 const composer = new CompositionBuilder(session);
 
-// Create and register template
-const translator = templates.register('translate', [
+// Create template
+const translator = templates.create([
   ['system', 'You are a helpful translator.'],
   ['human', 'Translate "{text}" to {language}.']
-]);
+], ['text', 'language']);
 
 // Create enhanced prompt function
 const translate = composer
@@ -46,7 +46,7 @@ const translate = composer
 
 // Use the template
 const result = await translate(
-  await templates.apply('translate', { 
+  translator({ 
     text: 'Hello, world!', 
     language: 'Spanish' 
   })

@@ -8,14 +8,20 @@ The main class for interacting with Window.ai's language models.
 
 ```typescript
 class Session {
-  constructor(options: {
+  static async create(options: {
     temperature?: number;
     onDownloadProgress?: (event: ProgressEvent) => void;
-  });
+  }): Promise<Session>;
+
+  // Properties
+  readonly tokensSoFar: number;
+  readonly maxTokens: number;
+  readonly tokensLeft: number;
 
   async prompt(input: string | Message[]): Promise<string>;
   async streamPrompt(input: string | Message[]): AsyncIterator<{ content: string }>;
   async initialize(): Promise<void>;
+  async destroy(): Promise<void>;
 }
 ```
 

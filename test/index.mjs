@@ -19,7 +19,22 @@ import {
   FallbackSystem,
   createWindowChain
 } from '../src/index.js';
+import {
+  FileReader,
+  TextEncoder,
+  Blob,
+  CompressionStream,
+  DecompressionStream,
+  Response
+} from './browser.mock.mjs';
 
+// Set up browser API mocks
+globalThis.FileReader = FileReader;
+globalThis.TextEncoder = TextEncoder;
+globalThis.Blob = Blob;
+globalThis.CompressionStream = CompressionStream;
+globalThis.DecompressionStream = DecompressionStream;
+globalThis.Response = Response;
 // Test suite for Session
 test('Session', async (t) => {
   let session;
@@ -144,17 +159,94 @@ test('Session', async (t) => {
     assert.ok(progressEvents > 0);
   });
 });
-// ... rest of the test file remains unchanged
+
 // Test suite for Capabilities
 test('Capabilities', async (t) => {
-  await t.test('get', async () => {
-    const capabilities = await Capabilities.get();
-    assert.deepEqual(capabilities, {
-      available: 'readily',
-      defaultTopK: 3,
-      maxTopK: 8,
-      defaultTemperature: 1.0
+  let capabilities;
+
+  t.beforeEach(async () => {
+    capabilities = await Capabilities.get();
+  });
+
+  await t.test('static get method', async () => {
+    const caps = await Capabilities.get();
+    assert.ok(caps instanceof Capabilities);
+    assert.ok(caps.available);
+    assert.ok(caps.defaultTopK);
+    assert.ok(caps.maxTopK);
+    assert.ok(caps.defaultTemperature);
+  });
+
+  await t.test('availability status methods', async () => {
+    // Test isReady
+    capabilities.available = 'readily';
+    assert.strictEqual(capabilities.isReady(), true);
+    capabilities.available = 'after-download';
+    assert.strictEqual(capabilities.isReady(), false);
+
+    // Test needsDownload
+    assert.strictEqual(capabilities.needsDownload(), true);
+    capabilities.available = 'no';
+    assert.strictEqual(capabilities.needsDownload(), false);
+
+    // Test isUnavailable
+    assert.strictEqual(capabilities.isUnavailable(), true);
+    capabilities.available = 'readily';
+    assert.strictEqual(capabilities.isUnavailable(), false);
+  });
+
+  await t.test('getRecommendedParams', async () => {
+    capabilities.defaultTemperature = 0.7;
+    capabilities.defaultTopK = 40;
+
+    // Test with no user config
+    const defaultParams = capabilities.getRecommendedParams();
+    assert.strictEqual(defaultParams.temperature, 0.7);
+    assert.strictEqual(defaultParams.topK, 40);
+
+    // Test with user config
+    const userParams = capabilities.getRecommendedParams({
+      temperature: 0.9,
+      topK: 50
     });
+    assert.strictEqual(userParams.temperature, 0.9);
+    assert.strictEqual(userParams.topK, 50);
+  });
+
+  await t.test('validateConfig', async () => {
+    capabilities.maxTopK = 100;
+
+    // Test valid config
+    const validResult = capabilities.validateConfig({
+      temperature: 1.0,
+      topK: 50
+    });
+    assert.strictEqual(validResult.valid, true);
+    assert.strictEqual(validResult.issues.length, 0);
+
+    // Test invalid topK
+    const invalidTopK = capabilities.validateConfig({
+      topK: 150
+    });
+    assert.strictEqual(invalidTopK.valid, false);
+    assert.strictEqual(invalidTopK.issues.length, 1);
+    assert.ok(invalidTopK.issues[0].includes('topK value 150 exceeds maximum 100'));
+
+    // Test invalid temperature
+    const invalidTemp = capabilities.validateConfig({
+      temperature: 2.5
+    });
+    assert.strictEqual(invalidTemp.valid, false);
+    assert.strictEqual(invalidTemp.issues.length, 1);
+    assert.ok(invalidTemp.issues[0].includes('temperature must be between 0 and 2'));
+
+    // Test multiple issues
+    const multipleIssues = capabilities.validateConfig({
+      temperature: -1,
+      topK: 200
+    });
+    assert.strictEqual(multipleIssues.valid, false);
+    assert.strictEqual(multipleIssues.issues.length, 2);
   });
 });
 
@@ -386,5 +478,108 @@ test('createWindowChain', async (t) => {
     assert.ok(chain.cache instanceof DistributedCache);
     assert.ok(chain.analytics instanceof PerformanceAnalytics);
     assert.ok(chain.chains instanceof CompositionChains);
+  });
+});
+
+// Test suite for CacheCompression
+test('CacheCompression', async (t) => {
+  let compression;
+
+  t.beforeEach(() => {
+    compression = new CacheCompression({
+      threshold: 10 // Set lower threshold for testing
+    });
+  });
+
+  await t.test('constructor options', () => {
+    const custom = new CacheCompression({
+      algorithm: 'deflate',
+      level: 'max',
+      threshold: 2048
+    });
+
+    assert.strictEqual(custom.options.algorithm, 'deflate');
+    assert.strictEqual(custom.options.level, 'max');
+    assert.strictEqual(custom.options.threshold, 2048);
+  });
+
+  await t.test('compression threshold', async () => {
+    const smallData = { test: 'small' };
+    const result = await compression.compress(smallData);
+    
+    assert.strictEqual(result.compressed, true);
+    assert.strictEqual(result.algorithm, 'lz');
+    assert.ok(result.data);
+  });
+
+  await t.test('LZ compression/decompression', async () => {
+    const testData = {
+      text: 'AAAAABBBCC', // String with repeating characters
+      numbers: [1, 1, 1, 2, 2, 3] // Array with repeating numbers
+    };
+
+    const compressed = await compression.compress(testData);
+    assert.strictEqual(compressed.compressed, true);
+    assert.strictEqual(compressed.algorithm, 'lz');
+    assert.ok(compressed.data);
+
+    const decompressed = await compression.decompress(compressed);
+    assert.deepStrictEqual(decompressed, testData);
+  });
+
+  await t.test('deflate compression/decompression', async () => {
+    compression = new CacheCompression({
+      algorithm: 'deflate',
+      threshold: 10
+    });
+    
+    const testData = {
+      text: 'Test deflate compression'
+    };
+
+    const compressed = await compression.compress(testData);
+    assert.strictEqual(compressed.compressed, true);
+    assert.strictEqual(compressed.algorithm, 'deflate');
+    assert.ok(compressed.data);
+
+    const decompressed = await compression.decompress(compressed);
+    assert.deepStrictEqual(decompressed, testData);
+  });
+
+  await t.test('compression statistics', async () => {
+    const testData = {
+      text: 'This is a test string that should be long enough to compress'
+    };
+
+    const compressed = await compression.compress(testData);
+    const stats = compression.getStats(compressed);
+
+    assert.ok(stats.originalSize > 0);
+    assert.ok(stats.compressedSize > 0);
+    assert.ok(stats.compressionRatio > 0);
+    assert.ok(stats.spaceSaved >= 0);
+    assert.strictEqual(stats.algorithm, 'lz');
+  });
+
+  await t.test('error handling', async () => {
+    await assert.rejects(
+      () => compression.compress(undefined),
+      {
+        name: 'Error',
+        message: 'Cannot compress undefined data'
+      }
+    );
+
+    await assert.rejects(
+      () => compression.decompress({
+        compressed: true,
+        algorithm: 'invalid',
+        data: btoa('test')
+      }),
+      {
+        name: 'Error',
+        message: 'Unsupported compression algorithm: invalid'
+      }
+    );
   });
 });
