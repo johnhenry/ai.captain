@@ -89,6 +89,7 @@ export async function createWindowChain(options = {}) {
     async destroy() {
       await session.destroy();
       await cache.clear();
+      fallback.destroy();
       // Add any other cleanup needed
     }
   };

@@ -15,6 +15,7 @@ export class FallbackSystem {
     this.fallbackSessions = new Map();
     this.healthStatus = new Map();
     this.strategyHandlers = new Map();
+    this.healthCheckInterval = null;
 
     this._initializeStrategies();
     this._startHealthCheck();
@@ -59,7 +60,7 @@ export class FallbackSystem {
    * @private
    */
   _startHealthCheck() {
-    setInterval(async () => {
+    this.healthCheckInterval = setInterval(async () => {
       await this._checkHealth(this.primarySession, 'primary');
       for (const [name, session] of this.fallbackSessions) {
         await this._checkHealth(session, name);
@@ -223,5 +224,18 @@ export class FallbackSystem {
     }
 
     return stats;
+  }
+
+  /**
+   * Stop health check monitoring and cleanup resources
+   */
+  destroy() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+    this.fallbackSessions.clear();
+    this.healthStatus.clear();
+    this.strategyHandlers.clear();
   }
 }
