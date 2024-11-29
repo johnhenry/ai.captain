@@ -227,10 +227,16 @@ const mockLanguageModel = {
       const monitor = {
         addEventListener: (event, callback) => {
           if (event === 'downloadprogress') {
-            // Simple synchronous progress simulation
-            for (let loaded = 0; loaded <= 1000000; loaded += 100000) {
-              callback({ loaded, total: 1000000 });
-            }
+            // Simulate progress asynchronously
+            let loaded = 0;
+            const total = 1000000;
+            const interval = setInterval(() => {
+              loaded += 100000;
+              callback({ loaded, total });
+              if (loaded >= total) {
+                clearInterval(interval);
+              }
+            }, 10);
           }
         }
       };

@@ -123,15 +123,24 @@ test('Session', async (t) => {
 
   await t.test('download progress monitoring', async () => {
     let progressEvents = 0;
-    session = await Session.create({
-      monitor: (m) => {
-        m.addEventListener('downloadprogress', (e) => {
-          assert.ok(e.loaded <= e.total);
-          progressEvents++;
-        });
-      }
+    
+    // Create a promise that resolves when we receive progress events
+    const progressPromise = new Promise(async resolve => {
+      session = await Session.create({
+        monitor: (m) => {
+          m.addEventListener('downloadprogress', (e) => {
+            assert.ok(e.loaded <= e.total);
+            progressEvents++;
+            if (e.loaded >= e.total) {
+              resolve();
+            }
+          });
+        }
+      });
     });
     
+    // Wait for progress events to complete
+    await progressPromise;
     assert.ok(progressEvents > 0);
   });
 });
