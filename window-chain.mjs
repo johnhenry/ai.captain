@@ -263,6 +263,11 @@ async function createModel(config = {}) {
     };
   }
 
+  // Add system message if provided
+  if (config.systemPrompt) {
+    modelConfig.systemPrompt = config.systemPrompt;
+  }
+
   return await window.ai.languageModel.create(modelConfig);
 }
 
@@ -397,17 +402,57 @@ function withRetry(fn, { maxRetries = 3, delay = 1000 } = {}) {
   };
 }
 
-// JSON output mode helper
+// JSON output mode helper with enhanced validation and parsing
 function withJsonOutput(model, schema) {
   return {
     ...model,
     async prompt(input, options) {
-      const response = await model.prompt(input, {
-        ...options,
-        format: "json",
-        outputSchema: schema,
-      });
-      return JSON.parse(response);
+      // Add JSON-specific system message if not already present
+      const systemPrompt = `You ONLY output valid JSON objects. NEVER give explanations or examples. NEVER use markdown formatting. NEVER use backticks. Output MUST be a single JSON object with exactly these fields: ${Object.keys(
+        schema
+      ).join(", ")}.`;
+
+      const jsonModel = {
+        ...model,
+        systemPrompt: model.systemPrompt
+          ? `${model.systemPrompt}\n${systemPrompt}`
+          : systemPrompt,
+        temperature: 0.1, // Lower temperature for more consistent JSON output
+      };
+
+      try {
+        const response = await jsonModel.prompt(input, {
+          ...options,
+          format: "json",
+          outputSchema: schema,
+        });
+
+        // Extract JSON from response (handling potential non-JSON content)
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("No JSON object found in response");
+        }
+
+        const jsonResponse = JSON.parse(jsonMatch[0]);
+
+        // Validate required fields
+        for (const [key, type] of Object.entries(schema)) {
+          if (!(key in jsonResponse)) {
+            throw new Error(`Missing required field: ${key}`);
+          }
+          if (typeof jsonResponse[key] !== type) {
+            throw new Error(
+              `Invalid type for ${key}: expected ${type}, got ${typeof jsonResponse[
+                key
+              ]}`
+            );
+          }
+        }
+
+        return jsonResponse;
+      } catch (error) {
+        throw new Error(`JSON parsing failed: ${error.message}`);
+      }
     },
   };
 }

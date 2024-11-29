@@ -30,8 +30,6 @@
         temperature: 0.7,
         onDownloadProgress: (e) =>
           console.log(`Downloaded ${e.loaded}/${e.total}`),
-        systemPrompt:
-          "You are a translator that ONLY outputs valid JSON objects. NEVER give explanations or examples. NEVER use markdown formatting. NEVER use backticks. Output MUST be a single JSON object with exactly these two fields: 'input', 'language', and 'output'.",
       });
 
       // You can also use createMessageTemplate for more complex interactions
