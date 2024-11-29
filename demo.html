@@ -54,6 +54,8 @@
               id="translateText"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
               value="Hello world"
+              title="Enter text to translate"
+              placeholder="Enter text to translate"
             />
           </div>
           <div>
@@ -63,6 +65,7 @@
             <select
               id="translateLang"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+              title="Choose target language"
             >
               <option value="Spanish">Spanish</option>
               <option value="French">French</option>
@@ -109,6 +112,7 @@
           <select
             id="fictionGenre"
             class="w-full p-2 border rounded"
+            title="Choose fiction genre"
           >
             <option value="science fiction" selected>Science Fiction</option>
             <option value="fantasy">Fantasy</option>
@@ -126,6 +130,7 @@
             class="w-full p-2 border rounded"
             placeholder="e.g., time travel, artificial intelligence, space exploration"
             value="artificial intelligence"
+            title="Enter the theme for your story"
           />
         </div>
         <div class="mb-4">
@@ -138,6 +143,7 @@
             max="4096"
             step="100"
             value="500"
+            title="Choose story length in words"
           />
         </div>
         <div class="mb-4">
@@ -145,6 +151,7 @@
           <select
             id="fictionStyle"
             class="w-full p-2 border rounded"
+            title="Choose writing style"
           >
             <option value="descriptive">Descriptive</option>
             <option value="minimalist">Minimalist</option>
@@ -183,6 +190,7 @@
           <select
             id="newsCategory"
             class="w-full p-2 border rounded"
+            title="Choose news category"
           >
             <option value="technology">Technology</option>
             <option value="science">Science</option>
@@ -199,6 +207,7 @@
             id="newsTopic"
             class="w-full p-2 border rounded"
             placeholder="Enter a headline or topic for the news story"
+            title="Enter the headline or topic for the news story"
           />
         </div>
         <div class="mb-4">
@@ -206,6 +215,7 @@
           <select
             id="newsStyle"
             class="w-full p-2 border rounded"
+            title="Choose news style"
           >
             <option value="breaking">Breaking News</option>
             <option value="investigative">Investigative</option>
@@ -218,6 +228,7 @@
           <select
             id="newsTone"
             class="w-full p-2 border rounded"
+            title="Choose news tone"
           >
             <option value="neutral">Neutral/Objective</option>
             <option value="critical">Critical Analysis</option>
@@ -267,6 +278,7 @@
             class="w-full p-2 border rounded"
             rows="4"
             placeholder="Enter text to analyze sentiment..."
+            title="Enter the text you want to analyze for sentiment"
           ></textarea>
         </div>
         <button
@@ -493,7 +505,6 @@
             'system: You are a helpful translator.\nhuman: Translate "{text}" to {language}."'
           );
 
-
           templates.register('sentiment',
             'system: You analyze sentiment and return JSON.\nhuman: Analyze the sentiment of this text and return a JSON object with "sentiment" (positive/negative/neutral) and "confidence" (0-1): {text}'
           );
@@ -583,10 +594,6 @@
             if (typeof chunk === 'string') {
               content += chunk;
               elements.newsOutput.textContent = content;
-              // if (markdownEnabled) {
-              //   renderMarkdown(content, elements.newsOutput);
-              // }
-
               yield chunk;
             }
           }
@@ -599,128 +606,6 @@
       // Update fiction length display
       elements.fictionLength.oninput = () => {
         elements.fictionLengthDisplay.textContent = elements.fictionLength.value;
-      };
-
-      // Fiction Generator handler
-      elements.generateFictionBtn.onclick = async () => {
-        setLoading('generateFictionBtn', true);
-        try {
-          const input = await templates.apply('fiction', {
-            genre: elements.fictionGenre.value,
-            theme: elements.fictionTheme.value,
-            length: elements.fictionLength.value,
-            style: elements.fictionStyle.value
-          });
-          
-          log(`Generating fiction with input: ${input}`, 'info');
-          elements.fictionOutput.textContent = await generateFiction(input);
-        } catch (error) {
-          const errorMsg = handleRateLimit(error);
-          elements.fictionOutput.textContent = `Error: ${errorMsg}`;
-        } finally {
-          setLoading('generateFictionBtn', false);
-        }
-      };
-
-      // News Generator handler
-      elements.streamNewsBtn.onclick = async () => {
-        if (elements.modelStatus.textContent.includes('Rate limited')) {
-          log('Cannot stream while rate limited', 'error');
-          return;
-        }
-
-        if (isStreaming) {
-          // If currently streaming, pause it
-          isStreaming = false;
-          elements.streamNewsBtn.textContent = 'Resume Stream';
-          return;
-        }
-
-        // Starting or resuming stream
-        isStreaming = true;
-        elements.streamNewsBtn.textContent = 'Pause Stream';
-        setLoading('streamNewsBtn', true);
-        elements.stopNewsBtn.disabled = false;
-        
-        if (!currentStream) {
-          // Only initialize new stream if we don't have one
-          const topic = elements.newsTopic.value;
-          if (!elements.newsOutput.textContent) {
-            elements.newsOutput.textContent = "";
-          }
-          log(`News story streaming requested for topic: "${topic}"`, 'info');
-
-          try {
-            const input = await templates.apply('news', {
-              category: elements.newsCategory.value,
-              topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
-              style: elements.newsStyle.value,
-              tone: elements.newsTone.value
-            });
-            
-            log(`Template applied: ${input}`, 'info');
-            currentStream = streamNews(input);
-          } catch (error) {
-            if (error.name !== "AbortError") {
-              const errorMsg = handleRateLimit(error);
-              elements.newsOutput.textContent = `Error: ${errorMsg}`;
-              isStreaming = false;
-              elements.streamNewsBtn.textContent = 'Stream';
-              setLoading('streamNewsBtn', false);
-              elements.stopNewsBtn.disabled = true;
-              currentStream = null;
-              return;
-            }
-          }
-        }
-
-        try {
-          // Continue streaming from where we left off
-          for await (const content of currentStream) {
-            if (!isStreaming) {
-              break;  // Exit the loop if streaming is paused
-            }
-            elements.newsOutput.textContent = "";
-            if (markdownEnabled) {
-              renderMarkdown(elements.newsOutput.textContent, elements.newsOutput);
-            }
-          }
-          
-          if (!isStreaming) {
-            setLoading('streamNewsBtn', false);  // Update button state when paused
-          } else {
-            // Stream completed normally
-            setLoading('streamNewsBtn', false);
-            elements.stopNewsBtn.disabled = true;
-            currentStream = null;
-            isStreaming = false;
-            elements.streamNewsBtn.textContent = 'Stream';
-          }
-        } catch (error) {
-          if (error.name !== "AbortError") {
-            const errorMsg = handleRateLimit(error);
-            elements.newsOutput.textContent = `Error: ${errorMsg}`;
-          }
-        } finally {
-          if (isStreaming) {  // Only reset if we weren't manually paused
-            setLoading('streamNewsBtn', false);
-            elements.stopNewsBtn.disabled = true;
-            currentStream = null;
-            isStreaming = false;
-            elements.streamNewsBtn.textContent = 'Stream';
-          }
-        }
-      };
-
-      elements.stopNewsBtn.onclick = () => {
-        if (currentStream) {
-          currentStream.return();
-          setLoading('streamNewsBtn', false);
-          elements.stopNewsBtn.disabled = true;
-          isStreaming = false;
-          elements.streamNewsBtn.textContent = 'Stream';
-          currentStream = null;
-        }
       };
 
       const analyzeSentiment = async (input) => {
@@ -812,18 +697,20 @@
 
       elements.generateFictionBtn.onclick = async () => {
         setLoading('generateFictionBtn', true);
-        const topic = elements.fictionTheme.value;
-        const length = elements.fictionLength.value;
         try {
-          const prompt = await templates.apply('fiction', { topic, length, genre: elements.fictionGenre.value, style: elements.fictionStyle.value });
-          const cacheKey = `fiction:${topic}:${length}`;
-          elements.fictionOutput.textContent = await withCache(
-            cacheKey,
-            () => generateFiction(prompt)
-          );
+          const input = await templates.apply('fiction', {
+            genre: elements.fictionGenre.value,
+            theme: elements.fictionTheme.value,
+            length: elements.fictionLength.value,
+            style: elements.fictionStyle.value
+          });
+          
+          log(`Generating fiction with input: ${input}`, 'info');
+          elements.fictionOutput.textContent = await generateFiction(input);
           renderMarkdown(elements.fictionOutput.textContent, elements.fictionOutput);
         } catch (error) {
-          elements.fictionOutput.textContent = `Error: ${error.message}`;
+          const errorMsg = handleRateLimit(error);
+          elements.fictionOutput.textContent = `Error: ${errorMsg}`;
         } finally {
           setLoading('generateFictionBtn', false);
         }
@@ -835,26 +722,72 @@
           return;
         }
 
+        if (isStreaming) {
+          // If currently streaming, pause it
+          isStreaming = false;
+          elements.streamNewsBtn.textContent = 'Resume Stream';
+          return;
+        }
+
+        // Starting or resuming stream
+        isStreaming = true;
+        elements.streamNewsBtn.textContent = 'Pause Stream';
         setLoading('streamNewsBtn', true);
         elements.stopNewsBtn.disabled = false;
-        const topic = elements.newsTopic.value;
-        elements.newsOutput.textContent = "";
-        log(`News story streaming requested for topic: "${topic}"`, 'info');
+        
+        if (!currentStream) {
+          // Only initialize new stream if we don't have one
+          const topic = elements.newsTopic.value;
+          if (!elements.newsOutput.textContent) {
+            elements.newsOutput.textContent = "";
+          }
+          log(`News story streaming requested for topic: "${topic}"`, 'info');
+
+          try {
+            const input = await templates.apply('news', {
+              category: elements.newsCategory.value,
+              topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
+              style: elements.newsStyle.value,
+              tone: elements.newsTone.value
+            });
+            
+            log(`Template applied: ${input}`, 'info');
+            currentStream = streamNews(input);
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              const errorMsg = handleRateLimit(error);
+              elements.newsOutput.textContent = `Error: ${errorMsg}`;
+              isStreaming = false;
+              elements.streamNewsBtn.textContent = 'Stream';
+              setLoading('streamNewsBtn', false);
+              elements.stopNewsBtn.disabled = true;
+              currentStream = null;
+              return;
+            }
+          }
+        }
 
         try {
-          const input = await templates.apply('news', {
-            category: elements.newsCategory.value,
-            topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
-            style: elements.newsStyle.value,
-            tone: elements.newsTone.value
-          });
-          
-          log(`Template applied: ${input}`, 'info');
-          
-          currentStream = streamNews(input);
+          // Continue streaming from where we left off
           for await (const content of currentStream) {
+            if (!isStreaming) {
+              break;  // Exit the loop if streaming is paused
+            }
             elements.newsOutput.textContent = content;
-            renderMarkdown(elements.newsOutput.textContent, elements.newsOutput);
+            if (markdownEnabled) {
+              renderMarkdown(elements.newsOutput.textContent, elements.newsOutput);
+            }
+          }
+
+          if (!isStreaming) {
+            setLoading('streamNewsBtn', false);  // Update button state when paused
+          } else {
+            // Stream completed normally
+            setLoading('streamNewsBtn', false);
+            elements.stopNewsBtn.disabled = true;
+            currentStream = null;
+            isStreaming = false;
+            elements.streamNewsBtn.textContent = 'Stream';
           }
         } catch (error) {
           if (error.name !== "AbortError") {
@@ -862,9 +795,13 @@
             elements.newsOutput.textContent = `Error: ${errorMsg}`;
           }
         } finally {
-          setLoading('streamNewsBtn', false);
-          elements.stopNewsBtn.disabled = true;
-          currentStream = null;
+          if (isStreaming) {  // Only reset if we weren't manually paused
+            setLoading('streamNewsBtn', false);
+            elements.stopNewsBtn.disabled = true;
+            currentStream = null;
+            isStreaming = false;
+            elements.streamNewsBtn.textContent = 'Stream';
+          }
         }
       };
 
@@ -873,6 +810,9 @@
           currentStream.return();
           setLoading('streamNewsBtn', false);
           elements.stopNewsBtn.disabled = true;
+          isStreaming = false;
+          elements.streamNewsBtn.textContent = 'Stream';
+          currentStream = null;
         }
       };
 
@@ -913,9 +853,9 @@
           elements.translateOutput.textContent = "";
           elements.fictionTheme.value = "artificial intelligence";  // Reset to default
           elements.fictionOutput.textContent = "";
-          elements.jsonInput.value = "I love this product! It's amazing and has completely changed my life for the better.";  // Reset to default
+          elements.jsonInput.value = "";  // Reset to empty
           elements.jsonOutput.textContent = "";
-          
+
         } catch (error) {
           log(`Session reset failed: ${error.message}`, 'error');
           elements.modelStatus.textContent = `Error: ${error.message}`;
@@ -936,6 +876,7 @@
       elements.clearNewsBtn.onclick = () => {
         elements.newsOutput.textContent = "";
       };
+
       elements.clearSentimentBtn.onclick = () => {
         elements.jsonOutput.textContent = "";
       };
@@ -947,3 +888,5 @@
     </script>
   </body>
 </html>
+
+
