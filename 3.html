@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WindowChain Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 p-8">
+      <script type="module">
+        import {createAdvancedTemplate, createProgressTracker, createTokenCounter, createCache,pipe, catchError, branch, enhancedPrompt, createModel, createMessageTemplate, streamPrompt, withJsonOutput, prompt, withRetry } from './window-chain.mjs';
+
+
+   // Initialize model
+  const model = await createModel({
+    temperature: 0.7,
+    onDownloadProgress: (e) => console.log(`Downloaded ${e.loaded}/${e.total}`),
+  });
+
+  // Use with streaming
+  const stream = streamPrompt(model, "Write a story about space");
+  for await (const chunk of stream) {
+    console.log(chunk.content);
+  }
+
+      </script>
+    </cdn>
+  </body>
+</html>

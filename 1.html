@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WindowChain Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 p-8">
+      <script type="module">
+        import {createAdvancedTemplate, createProgressTracker, createTokenCounter, createCache,pipe, catchError, branch, enhancedPrompt, createModel, createMessageTemplate, streamPrompt, withJsonOutput, prompt, withRetry } from './window-chain.mjs';
+     // Initialize model
+  const model = await createModel({
+    temperature: 0.7,
+    onDownloadProgress: (e) => console.log(`Downloaded ${e.loaded}/${e.total}`),
+  });
+
+  const template = createAdvancedTemplate(
+    "Hello {name}, your email is {email}",
+    {
+      name: {
+        type: "string",
+        required: true,
+        format: "trim",
+      },
+      email: {
+        type: "email",
+        validate: (email) => email.includes("@gmail.com"),
+      },
+    }
+  );
+
+  // Progress tracking
+  const tracker = createProgressTracker();
+  tracker.onProgress(({ progress, total }) => {
+    console.log(`Progress: ${progress}/${total}`);
+  });
+
+  // Token counting
+  const counter = createTokenCounter(4096);
+
+  // Caching
+  const cache = createCache({ ttl: 60000, maxSize: 100 });
+
+  // Composition
+  const pipeline = pipe(
+    template,
+    catchError(
+      branch(
+        (input) => counter.wouldExceedLimit(input),
+        (input) => "Input too long",
+        async (input) => {
+          const result = await enhancedPrompt(model, input, {
+            cache,
+            progressTracker: tracker,
+            tokenCounter: counter,
+            retry: true,
+            cacheKey: input,
+          });
+          return result.content;
+        }
+      ),
+      (error, input) => `Error processing ${input}: ${error.message}`
+    )
+  );
+  console.log({remainingTokens:counter.remaining})
+
+  const result = await pipeline({
+    name: "  John  ",
+    email: "john@gmail.com",
+  });
+  console.log({remainingTokens:counter.remaining})
+  console.log(result);
+
+      </script>
+    </cdn>
+  </body>
+</html>
