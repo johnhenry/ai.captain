@@ -92,38 +92,38 @@ function createProgressTracker() {
   };
 }
 
-// Token counting and management for LLM context windows
-function createTokenCounter(maxTokens = 4096) {
-  let usedTokens = 0;
+// // Token counting and management for LLM context windows
+// function createTokenCounter(maxTokens = 4096) {
+//   let usedTokens = 0;
 
-  // Simple token estimation - can be replaced with more accurate tokenizer
-  const estimateTokens = (text) => Math.ceil(text.length / 4);
+//   // Simple token estimation - can be replaced with more accurate tokenizer
+//   const estimateTokens = (text) => Math.ceil(text.length / 4);
 
-  return {
-    // Track tokens used by text
-    track(text) {
-      const tokens = estimateTokens(text);
-      usedTokens += tokens;
-      return tokens;
-    },
-    // Reset token count
-    reset() {
-      usedTokens = 0;
-    },
-    // Get remaining tokens
-    get remaining() {
-      return maxTokens - usedTokens;
-    },
-    // Get used tokens
-    get used() {
-      return usedTokens;
-    },
-    // Check if adding text would exceed token limit
-    wouldExceedLimit(text) {
-      return usedTokens + estimateTokens(text) > maxTokens;
-    },
-  };
-}
+//   return {
+//     // Track tokens used by text
+//     track(text) {
+//       const tokens = estimateTokens(text);
+//       usedTokens += tokens;
+//       return tokens;
+//     },
+//     // Reset token count
+//     reset() {
+//       usedTokens = 0;
+//     },
+//     // Get remaining tokens
+//     get remaining() {
+//       return maxTokens - usedTokens;
+//     },
+//     // Get used tokens
+//     get used() {
+//       return usedTokens;
+//     },
+//     // Check if adding text would exceed token limit
+//     wouldExceedLimit(text) {
+//       return usedTokens + estimateTokens(text) > maxTokens;
+//     },
+//   };
+// }
 
 // Simple caching mechanism for LLM responses
 function createCache(options = {}) {
@@ -158,6 +158,93 @@ function createCache(options = {}) {
     clear() {
       cache.clear();
     },
+  };
+}
+
+// Enhanced caching with distributed support and compression
+function createAdvancedCache(options = {}) {
+  const {
+    maxSize = 1000,
+    ttl = 3600000,
+    compression = true,
+    distributed = false
+  } = options;
+
+  const cache = new Map();
+  const metadata = new Map();
+  
+  const compress = (data) => {
+    if (!compression) return data;
+    return typeof data === 'string' 
+      ? btoa(encodeURIComponent(data))
+      : btoa(encodeURIComponent(JSON.stringify(data)));
+  };
+
+  const decompress = (data) => {
+    if (!compression) return data;
+    try {
+      const decoded = decodeURIComponent(atob(data));
+      return decoded.startsWith('{') ? JSON.parse(decoded) : decoded;
+    } catch (e) {
+      return data;
+    }
+  };
+
+  const channel = distributed ? new BroadcastChannel('window-chain-cache') : null;
+  
+  if (channel) {
+    channel.onmessage = (event) => {
+      const { type, key, value, timestamp } = event.data;
+      if (type === 'set') {
+        const currentTimestamp = metadata.get(key)?.timestamp || 0;
+        if (timestamp > currentTimestamp) {
+          cache.set(key, value);
+          metadata.set(key, { timestamp });
+        }
+      }
+    };
+  }
+
+  return {
+    set: (key, value) => {
+      const timestamp = Date.now();
+      const compressed = compress(value);
+      
+      cache.set(key, compressed);
+      metadata.set(key, { timestamp });
+
+      if (channel) {
+        channel.postMessage({ type: 'set', key, value: compressed, timestamp });
+      }
+
+      if (cache.size > maxSize) {
+        const oldestKey = Array.from(metadata.entries())
+          .sort(([, a], [, b]) => a.timestamp - b.timestamp)[0][0];
+        cache.delete(oldestKey);
+        metadata.delete(oldestKey);
+      }
+    },
+
+    get: (key) => {
+      const data = cache.get(key);
+      if (!data) return null;
+
+      const meta = metadata.get(key);
+      if (Date.now() - meta.timestamp > ttl) {
+        cache.delete(key);
+        metadata.delete(key);
+        return null;
+      }
+
+      return decompress(data);
+    },
+
+    clear: () => {
+      cache.clear();
+      metadata.clear();
+    },
+    
+    size: () => cache.size
   };
 }
 
@@ -377,6 +464,76 @@ async function* streamPrompt(model, input, options = {}) {
     }
     throw new Error("Stream failed: " + error.message);
   }
+}
+
+// Enhanced streaming with backpressure and chunking
+async function* createStreamProcessor(stream, options = {}) {
+  const {
+    chunkSize = 1024,
+    maxBackpressure = 5000,
+    aggregationWindow = 100
+  } = options;
+
+  let buffer = '';
+  let lastFlush = Date.now();
+  
+  // Backpressure handling
+  const processWithBackpressure = async (chunk) => {
+    if (buffer.length > maxBackpressure) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    buffer += chunk;
+  };
+
+  // Chunking strategy
+  const shouldFlush = () => {
+    const now = Date.now();
+    return buffer.length >= chunkSize || (now - lastFlush) >= aggregationWindow;
+  };
+
+  const flush = () => {
+    const chunk = buffer;
+    buffer = '';
+    lastFlush = Date.now();
+    return chunk;
+  };
+
+  try {
+    for await (const chunk of stream) {
+      await processWithBackpressure(chunk);
+      
+      if (shouldFlush()) {
+        yield flush();
+      }
+    }
+
+    // Flush any remaining content
+    if (buffer.length > 0) {
+      yield flush();
+    }
+  } catch (error) {
+    console.error('Stream processing error:', error);
+    throw error;
+  }
+}
+
+// Enhanced streaming prompt execution with backpressure and chunking
+async function enhancedStreamPrompt(model, input, options = {}) {
+  const {
+    temperature = 0.7,
+    maxTokens,
+    stopSequences = [],
+    streamOptions = {}
+  } = options;
+
+  const stream = await model.streamComplete({
+    prompt: input,
+    temperature,
+    maxTokens,
+    stop: stopSequences
+  });
+
+  return createStreamProcessor(stream, streamOptions);
 }
 
 // Function composition helper
@@ -610,28 +767,122 @@ function createCompositionBuilder() {
   };
 }
 
-// Enhanced token estimation using BPE-like approach
-function createEnhancedTokenCounter(maxTokens = 4096) {
-  // Common token patterns for better estimation
-  const patterns = {
-    spaces: /\s+/g,
-    newlines: /\n+/g,
-    punctuation: /[.,!?;:'"(){}\[\]]/g,
-    numbers: /\d+/g,
-    commonWords: new Set([
-      "the",
-      "be",
-      "to",
-      "of",
-      "and",
-      "a",
-      "in",
-      "that",
-      "have",
-      "I",
-    ]),
-    subwords: new Set(["ing", "ed", "ly", "er", "est", "tion", "ment"]),
+// Enhanced token estimation using BPE-like approach with model-specific tokenizers
+function createEnhancedTokenCounter(maxTokens = 4096, modelType = 'gpt-3.5') {
+  // Model-specific tokenizer configurations
+  const modelConfigs = {
+    'gpt-3.5': {
+      avgTokenLength: 4,
+      specialTokens: new Set([
+        '<|reserved_special_token_0|>',
+        '<|reserved_special_token_1|>',
+        '<|reserved_special_token_2|>',
+        '<|reserved_special_token_3|>',
+        '<|reserved_special_token_4|>',
+        '<|reserved_special_token_5|>',
+        '<|reserved_special_token_6|>',
+        '<|reserved_special_token_7|>',
+        '<|reserved_special_token_8|>',
+        '<|reserved_special_token_9|>',
+        '<|reserved_special_token_10|>',
+        '<|reserved_special_token_11|>',
+        '<|reserved_special_token_12|>',
+        '<|reserved_special_token_13|>',
+        '<|reserved_special_token_14|>',
+        '<|reserved_special_token_15|>',
+        '<|reserved_special_token_16|>',
+        '<|reserved_special_token_17|>',
+        '<|reserved_special_token_18|>',
+        '<|reserved_special_token_19|>',
+        '<|reserved_special_token_20|>',
+        '<|reserved_special_token_21|>',
+        '<|reserved_special_token_22|>',
+        '<|reserved_special_token_23|>',
+        '<|reserved_special_token_24|>',
+        '<|reserved_special_token_25|>',
+        '<|reserved_special_token_26|>',
+        '<|reserved_special_token_27|>',
+        '<|reserved_special_token_28|>',
+        '<|reserved_special_token_29|>',
+        '<|reserved_special_token_30|>',
+        '<|reserved_special_token_31|>',
+        '<|reserved_special_token_32|>',
+        '<|reserved_special_token_33|>',
+        '<|reserved_special_token_34|>',
+        '<|reserved_special_token_35|>',
+        '<|reserved_special_token_36|>',
+        '<|reserved_special_token_37|>',
+        '<|reserved_special_token_38|>',
+        '<|reserved_special_token_39|>',
+        '<|reserved_special_token_40|>',
+        '<|reserved_special_token_41|>',
+        '<|reserved_special_token_42|>',
+        '<|reserved_special_token_43|>',
+        '<|reserved_special_token_44|>',
+        '<|reserved_special_token_45|>',
+        '<|reserved_special_token_46|>',
+        '<|reserved_special_token_47|>',
+        '<|reserved_special_token_48|>',
+        '<|reserved_special_token_49|>',
+        '<|reserved_special_token_50|>',
+        '<|reserved_special_token_51|>',
+        '<|reserved_special_token_52|>',
+        '<|reserved_special_token_53|>',
+        '<|reserved_special_token_54|>',
+        '<|reserved_special_token_55|>',
+        '<|reserved_special_token_56|>',
+        '<|reserved_special_token_57|>',
+        '<|reserved_special_token_58|>',
+        '<|reserved_special_token_59|>',
+        '<|reserved_special_token_60|>',
+        '<|reserved_special_token_61|>',
+        '<|reserved_special_token_62|>',
+        '<|reserved_special_token_63|>',
+        '<|reserved_special_token_64|>',
+        '<|reserved_special_token_65|>',
+        '<|reserved_special_token_66|>',
+        '<|reserved_special_token_67|>',
+        '<|reserved_special_token_68|>',
+        '<|reserved_special_token_69|>',
+        '<|reserved_special_token_70|>',
+        '<|reserved_special_token_71|>',
+        '<|reserved_special_token_72|>',
+        '<|reserved_special_token_73|>',
+        '<|reserved_special_token_74|>',
+        '<|reserved_special_token_75|>',
+        '<|reserved_special_token_76|>',
+        '<|reserved_special_token_77|>',
+        '<|reserved_special_token_78|>',
+        '<|reserved_special_token_79|>',
+        '<|reserved_special_token_80|>',
+        '<|reserved_special_token_81|>',
+        '<|reserved_special_token_82|>',
+        '<|reserved_special_token_83|>',
+        '<|reserved_special_token_84|>',
+        '<|reserved_special_token_85|>',
+        '<|reserved_special_token_86|>',
+        '<|reserved_special_token_87|>',
+        '<|reserved_special_token_88|>',
+        '<|reserved_special_token_89|>',
+        '<|reserved_special_token_90|>',
+        '<|reserved_special_token_91|>',
+        '<|reserved_special_token_92|>',
+        '<|reserved_special_token_93|>',
+        '<|reserved_special_token_94|>',
+        '<|reserved_special_token_95|>',
+        '<|reserved_special_token_96|>',
+        '<|reserved_special_token_97|>',
+        '<|reserved_special_token_98|>',
+        '<|reserved_special_token_99|>',
+      ]),
+    },
   };
+
+  const modelConfig = modelConfigs[modelType];
+
+  if (!modelConfig) {
+    throw new Error(`Unsupported model type: ${modelType}`);
+  }
 
   const estimateTokens = (text) => {
     let tokens = 0;
@@ -640,37 +891,34 @@ function createEnhancedTokenCounter(maxTokens = 4096) {
     const words = text.split(/\s+/);
 
     for (const word of words) {
-      if (patterns.commonWords.has(word.toLowerCase())) {
+      if (modelConfig.specialTokens.has(word)) {
         tokens += 1;
         continue;
       }
 
       // Count numbers as single tokens
-      if (patterns.numbers.test(word)) {
+      if (/\d+/.test(word)) {
         tokens += 1;
         continue;
       }
 
-      // Count punctuation
-      tokens += (word.match(patterns.punctuation) || []).length;
-
       // Estimate subwords
       let remainingWord = word;
-      for (const subword of patterns.subwords) {
+      for (const subword of ['ing', 'ed', 'ly', 'er', 'est', 'tion', 'ment']) {
         if (remainingWord.includes(subword)) {
           tokens += 1;
-          remainingWord = remainingWord.replace(subword, "");
+          remainingWord = remainingWord.replace(subword, '');
         }
       }
 
       // Add remaining characters
       if (remainingWord.length > 0) {
-        tokens += Math.ceil(remainingWord.length / 4);
+        tokens += Math.ceil(remainingWord.length / modelConfig.avgTokenLength);
       }
     }
 
     // Add tokens for whitespace and formatting
-    tokens += (text.match(patterns.newlines) || []).length;
+    tokens += (text.match(/\n+/g) || []).length;
 
     return Math.max(1, tokens);
   };
@@ -857,6 +1105,195 @@ function createEnhancedCache(options = {}) {
   };
 }
 
+// Enhanced token counting with model-specific support
+function createTokenCounter(options = {}) {
+  const {
+    model = 'gpt-3.5',
+    maxTokens = 4096,
+    trackUsage = true
+  } = options;
+
+  // Model-specific configurations
+  const modelConfigs = {
+    'gpt-3.5': {
+      tokenizer: 'cl100k_base',
+      avgCharsPerToken: 4,
+      specialTokens: new Set([
+        '<|reserved_special_token_0|>',
+        '<|reserved_special_token_1|>',
+        '<|reserved_special_token_2|>',
+        '<|reserved_special_token_3|>',
+        '<|reserved_special_token_4|>',
+        '<|reserved_special_token_5|>',
+        '<|reserved_special_token_6|>',
+        '<|reserved_special_token_7|>',
+        '<|reserved_special_token_8|>',
+        '<|reserved_special_token_9|>',
+        '<|reserved_special_token_10|>',
+        '<|reserved_special_token_11|>',
+        '<|reserved_special_token_12|>',
+        '<|reserved_special_token_13|>',
+        '<|reserved_special_token_14|>',
+        '<|reserved_special_token_15|>',
+        '<|reserved_special_token_16|>',
+        '<|reserved_special_token_17|>',
+        '<|reserved_special_token_18|>',
+        '<|reserved_special_token_19|>',
+        '<|reserved_special_token_20|>',
+        '<|reserved_special_token_21|>',
+        '<|reserved_special_token_22|>',
+        '<|reserved_special_token_23|>',
+        '<|reserved_special_token_24|>',
+        '<|reserved_special_token_25|>',
+        '<|reserved_special_token_26|>',
+        '<|reserved_special_token_27|>',
+        '<|reserved_special_token_28|>',
+        '<|reserved_special_token_29|>',
+        '<|reserved_special_token_30|>',
+        '<|reserved_special_token_31|>',
+        '<|reserved_special_token_32|>',
+        '<|reserved_special_token_33|>',
+        '<|reserved_special_token_34|>',
+        '<|reserved_special_token_35|>',
+        '<|reserved_special_token_36|>',
+        '<|reserved_special_token_37|>',
+        '<|reserved_special_token_38|>',
+        '<|reserved_special_token_39|>',
+        '<|reserved_special_token_40|>',
+        '<|reserved_special_token_41|>',
+        '<|reserved_special_token_42|>',
+        '<|reserved_special_token_43|>',
+        '<|reserved_special_token_44|>',
+        '<|reserved_special_token_45|>',
+        '<|reserved_special_token_46|>',
+        '<|reserved_special_token_47|>',
+        '<|reserved_special_token_48|>',
+        '<|reserved_special_token_49|>',
+        '<|reserved_special_token_50|>',
+        '<|reserved_special_token_51|>',
+        '<|reserved_special_token_52|>',
+        '<|reserved_special_token_53|>',
+        '<|reserved_special_token_54|>',
+        '<|reserved_special_token_55|>',
+        '<|reserved_special_token_56|>',
+        '<|reserved_special_token_57|>',
+        '<|reserved_special_token_58|>',
+        '<|reserved_special_token_59|>',
+        '<|reserved_special_token_60|>',
+        '<|reserved_special_token_61|>',
+        '<|reserved_special_token_62|>',
+        '<|reserved_special_token_63|>',
+        '<|reserved_special_token_64|>',
+        '<|reserved_special_token_65|>',
+        '<|reserved_special_token_66|>',
+        '<|reserved_special_token_67|>',
+        '<|reserved_special_token_68|>',
+        '<|reserved_special_token_69|>',
+        '<|reserved_special_token_70|>',
+        '<|reserved_special_token_71|>',
+        '<|reserved_special_token_72|>',
+        '<|reserved_special_token_73|>',
+        '<|reserved_special_token_74|>',
+        '<|reserved_special_token_75|>',
+        '<|reserved_special_token_76|>',
+        '<|reserved_special_token_77|>',
+        '<|reserved_special_token_78|>',
+        '<|reserved_special_token_79|>',
+        '<|reserved_special_token_80|>',
+        '<|reserved_special_token_81|>',
+        '<|reserved_special_token_82|>',
+        '<|reserved_special_token_83|>',
+        '<|reserved_special_token_84|>',
+        '<|reserved_special_token_85|>',
+        '<|reserved_special_token_86|>',
+        '<|reserved_special_token_87|>',
+        '<|reserved_special_token_88|>',
+        '<|reserved_special_token_89|>',
+        '<|reserved_special_token_90|>',
+        '<|reserved_special_token_91|>',
+        '<|reserved_special_token_92|>',
+        '<|reserved_special_token_93|>',
+        '<|reserved_special_token_94|>',
+        '<|reserved_special_token_95|>',
+        '<|reserved_special_token_96|>',
+        '<|reserved_special_token_97|>',
+        '<|reserved_special_token_98|>',
+        '<|reserved_special_token_99|>',
+      ]),
+    },
+  };
+
+  const modelConfig = modelConfigs[model];
+
+  if (!modelConfig) {
+    throw new Error(`Unsupported model type: ${model}`);
+  }
+
+  const estimateTokens = (text) => {
+    let tokens = 0;
+
+    // Split into words
+    const words = text.split(/\s+/);
+
+    for (const word of words) {
+      if (modelConfig.specialTokens.has(word)) {
+        tokens += 1;
+        continue;
+      }
+
+      // Count numbers as single tokens
+      if (/\d+/.test(word)) {
+        tokens += 1;
+        continue;
+      }
+
+      // Estimate subwords
+      let remainingWord = word;
+      for (const subword of ['ing', 'ed', 'ly', 'er', 'est', 'tion', 'ment']) {
+        if (remainingWord.includes(subword)) {
+          tokens += 1;
+          remainingWord = remainingWord.replace(subword, '');
+        }
+      }
+
+      // Add remaining characters
+      if (remainingWord.length > 0) {
+        tokens += Math.ceil(remainingWord.length / modelConfig.avgCharsPerToken);
+      }
+    }
+
+    // Add tokens for whitespace and formatting
+    tokens += (text.match(/\n+/g) || []).length;
+
+    return Math.max(1, tokens);
+  };
+
+  let usedTokens = 0;
+
+  return {
+    track(text) {
+      const tokens = estimateTokens(text);
+      usedTokens += tokens;
+      return tokens;
+    },
+    reset() {
+      usedTokens = 0;
+    },
+    get remaining() {
+      return maxTokens - usedTokens;
+    },
+    get used() {
+      return usedTokens;
+    },
+    wouldExceedLimit(text) {
+      return usedTokens + estimateTokens(text) > maxTokens;
+    },
+    estimate(text) {
+      return estimateTokens(text);
+    },
+  };
+}
+
 export {
   createTemplate,
   createMessageTemplate,
@@ -870,7 +1307,6 @@ export {
   createEnhancedCache,
   createAdvancedTemplate,
   createProgressTracker,
-  createTokenCounter,
   createCache,
   parallel,
   branch,
@@ -880,4 +1316,8 @@ export {
   checkModelCapabilities,
   createModel,
   formatMessages,
+  createAdvancedCache,
+  enhancedStreamPrompt,
+  createStreamProcessor,
+  createTokenCounter,
 };
