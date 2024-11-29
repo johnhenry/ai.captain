@@ -77,162 +77,190 @@
             Translate with Retry
           </button>
         </div>
-        <div
-          id="translateOutput"
-          class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap"
-        ></div>
+        <div class="mt-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-medium text-gray-700">Translation Output</h3>
+            <button
+              id="clearTranslateBtn"
+              class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            id="translateOutput"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+          ></div>
+        </div>
       </div>
 
-
-<!-- Fiction Generator -->
-<div class="bg-white p-6 rounded-lg shadow-md mb-8">
-  <h2 class="text-xl font-semibold mb-4">Fiction Generator</h2>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Genre</label>
-    <select
-      id="fictionGenre"
-      class="w-full p-2 border rounded"
-    >
-      <option value="science fiction" selected>Science Fiction</option>
-      <option value="fantasy">Fantasy</option>
-      <option value="mystery">Mystery</option>
-      <option value="romance">Romance</option>
-      <option value="horror">Horror</option>
-      <option value="historical fiction">Historical Fiction</option>
-    </select>
-  </div>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Story Theme</label>
-    <input
-      type="text"
-      id="fictionTheme"
-      class="w-full p-2 border rounded"
-      placeholder="e.g., time travel, artificial intelligence, space exploration"
-      value="artificial intelligence"
-    />
-  </div>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Story Length (words): <span id="fictionLengthDisplay">500</span></label>
-    <input
-      type="range"
-      id="fictionLength"
-      class="w-full"
-      min="100"
-      max="4096"
-      step="100"
-      value="500"
-    />
-  </div>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Writing Style</label>
-    <select
-      id="fictionStyle"
-      class="w-full p-2 border rounded"
-    >
-      <option value="descriptive">Descriptive</option>
-      <option value="minimalist">Minimalist</option>
-      <option value="literary">Literary</option>
-      <option value="experimental">Experimental</option>
-    </select>
-  </div>
-  <button
-    id="generateFictionBtn"
-    class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-  >
-    Generate Story
-  </button>
-  <div
-    id="fictionOutput"
-    class="mt-4 p-4 bg-gray-50 rounded min-h-[200px] whitespace-pre-wrap"
-  ></div>
-</div>
-
-<!-- News Story Generator -->
-<div class="bg-white p-6 rounded-lg shadow-md mb-8">
-  <h2 class="text-xl font-semibold mb-4">News Story Generator</h2>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Topic Category</label>
-    <select
-      id="newsCategory"
-      class="w-full p-2 border rounded"
-    >
-      <option value="technology">Technology</option>
-      <option value="science">Science</option>
-      <option value="business">Business</option>
-      <option value="politics">Politics</option>
-      <option value="environment">Environment</option>
-      <option value="health">Health</option>
-    </select>
-  </div>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Headline/Topic</label>
-    <input
-      type="text"
-      id="newsTopic"
-      class="w-full p-2 border rounded"
-      placeholder="Enter a headline or topic for the news story"
-    />
-  </div>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Style</label>
-    <select
-      id="newsStyle"
-      class="w-full p-2 border rounded"
-    >
-      <option value="breaking">Breaking News</option>
-      <option value="investigative">Investigative</option>
-      <option value="feature">Feature Story</option>
-      <option value="opinion">Opinion/Editorial</option>
-    </select>
-  </div>
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">Tone</label>
-    <select
-      id="newsTone"
-      class="w-full p-2 border rounded"
-    >
-      <option value="neutral">Neutral/Objective</option>
-      <option value="critical">Critical Analysis</option>
-      <option value="optimistic">Optimistic</option>
-      <option value="cautionary">Cautionary</option>
-    </select>
-  </div>
-  <div class="space-x-2">
-    <button
-      id="streamNewsBtn"
-      class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-    >
-      Stream Story
-    </button>
-    <button
-      id="stopNewsBtn"
-      class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-      disabled
-    >
-      Stop
-    </button>
-  </div>
-  <div
-    id="newsOutput"
-    class="mt-4 p-4 bg-gray-50 rounded min-h-[200px] whitespace-pre-wrap"
-  ></div>
-</div>
-
-
-
-
-      <!-- JSON Output Demo -->
+      <!-- Fiction Generator -->
       <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold mb-4">JSON Analysis</h2>
+        <h2 class="text-xl font-semibold mb-4">Fiction Generator</h2>
         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700"
-            >Text for Analysis</label
+          <label class="block text-sm font-medium text-gray-700 mb-2">Genre</label>
+          <select
+            id="fictionGenre"
+            class="w-full p-2 border rounded"
           >
+            <option value="science fiction" selected>Science Fiction</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="mystery">Mystery</option>
+            <option value="romance">Romance</option>
+            <option value="horror">Horror</option>
+            <option value="historical fiction">Historical Fiction</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Story Theme</label>
+          <input
+            type="text"
+            id="fictionTheme"
+            class="w-full p-2 border rounded"
+            placeholder="e.g., time travel, artificial intelligence, space exploration"
+            value="artificial intelligence"
+          />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Story Length (words): <span id="fictionLengthDisplay">500</span></label>
+          <input
+            type="range"
+            id="fictionLength"
+            class="w-full"
+            min="100"
+            max="4096"
+            step="100"
+            value="500"
+          />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Writing Style</label>
+          <select
+            id="fictionStyle"
+            class="w-full p-2 border rounded"
+          >
+            <option value="descriptive">Descriptive</option>
+            <option value="minimalist">Minimalist</option>
+            <option value="literary">Literary</option>
+            <option value="experimental">Experimental</option>
+          </select>
+        </div>
+        <button
+          id="generateFictionBtn"
+          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Generate Story
+        </button>
+        <div class="mt-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-medium text-gray-700">Generated Story</h3>
+            <button
+              id="clearFictionBtn"
+              class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            id="fictionOutput"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+          ></div>
+        </div>
+      </div>
+
+      <!-- News Story Generator -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">News Story Generator</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Topic Category</label>
+          <select
+            id="newsCategory"
+            class="w-full p-2 border rounded"
+          >
+            <option value="technology">Technology</option>
+            <option value="science">Science</option>
+            <option value="business">Business</option>
+            <option value="politics">Politics</option>
+            <option value="environment">Environment</option>
+            <option value="health">Health</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Headline/Topic</label>
+          <input
+            type="text"
+            id="newsTopic"
+            class="w-full p-2 border rounded"
+            placeholder="Enter a headline or topic for the news story"
+          />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Style</label>
+          <select
+            id="newsStyle"
+            class="w-full p-2 border rounded"
+          >
+            <option value="breaking">Breaking News</option>
+            <option value="investigative">Investigative</option>
+            <option value="feature">Feature Story</option>
+            <option value="opinion">Opinion/Editorial</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+          <select
+            id="newsTone"
+            class="w-full p-2 border rounded"
+          >
+            <option value="neutral">Neutral/Objective</option>
+            <option value="critical">Critical Analysis</option>
+            <option value="optimistic">Optimistic</option>
+            <option value="cautionary">Cautionary</option>
+          </select>
+        </div>
+        <div class="flex space-x-2 mb-4">
+          <button
+            id="streamNewsBtn"
+            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            Stream
+          </button>
+          <button
+            id="stopNewsBtn"
+            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            disabled
+          >
+            Stop
+          </button>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-medium text-gray-700">Generated News Story</h3>
+            <button
+              id="clearNewsBtn"
+              class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            id="newsOutput"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Sentiment Analysis -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Sentiment Analysis</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Text to Analyze</label>
           <textarea
             id="jsonInput"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
-            rows="3"
-          >I love this product! It's amazing and has completely changed my life for the better.</textarea>
+            class="w-full p-2 border rounded"
+            rows="4"
+            placeholder="Enter text to analyze sentiment..."
+          ></textarea>
         </div>
         <button
           id="analyzeBtn"
@@ -240,20 +268,22 @@
         >
           Analyze Sentiment
         </button>
-        <div
-          id="jsonOutput"
-          class="mt-4 p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap font-mono text-sm"
-        ></div>
-      </div>
-      <!-- Log Container -->
-      <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold mb-4">Activity Log</h2>
-        <div id="logContainer" class="h-48 overflow-y-auto bg-gray-50 p-4 rounded">
-          <!-- Log entries will be inserted here -->
+        <div class="mt-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-medium text-gray-700">Sentiment Analysis Output</h3>
+            <button
+              id="clearSentimentBtn"
+              class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            id="jsonOutput"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+          ></div>
         </div>
       </div>
-    </div>
-
     <script type="module">
       import {
         Session,
@@ -361,6 +391,7 @@ const elements = {
   translateBtn: document.getElementById("translateBtn"),
   translateWithRetryBtn: document.getElementById("translateWithRetryBtn"),
   translateOutput: document.getElementById("translateOutput"),
+  clearTranslateBtn: document.getElementById("clearTranslateBtn"),
   // Fiction Generator elements
   fictionGenre: document.getElementById("fictionGenre"),
   fictionTheme: document.getElementById("fictionTheme"),
@@ -369,6 +400,7 @@ const elements = {
   fictionStyle: document.getElementById("fictionStyle"),
   generateFictionBtn: document.getElementById("generateFictionBtn"),
   fictionOutput: document.getElementById("fictionOutput"),
+  clearFictionBtn: document.getElementById("clearFictionBtn"),
   // News Generator elements
   newsCategory: document.getElementById("newsCategory"),
   newsTopic: document.getElementById("newsTopic"),
@@ -377,6 +409,8 @@ const elements = {
   streamNewsBtn: document.getElementById("streamNewsBtn"),
   stopNewsBtn: document.getElementById("stopNewsBtn"),
   newsOutput: document.getElementById("newsOutput"),
+  clearNewsBtn: document.getElementById("clearNewsBtn"),
+  clearSentimentBtn: document.getElementById("clearSentimentBtn"),
   jsonInput: document.getElementById("jsonInput"),
   analyzeBtn: document.getElementById("analyzeBtn"),
   jsonOutput: document.getElementById("jsonOutput"),
@@ -385,6 +419,8 @@ const elements = {
       // Initialize components
       let session;
       let templates;
+      let currentStream = null;
+      let isStreaming = false;  // Track streaming state
       let cache;
       let analytics;
       let chains;
@@ -579,31 +615,75 @@ elements.generateFictionBtn.onclick = async () => {
 };
 
 // News Generator handler
-let currentNewsStream = null;
-
 elements.streamNewsBtn.onclick = async () => {
   if (elements.modelStatus.textContent.includes('Rate limited')) {
     log('Cannot stream while rate limited', 'error');
     return;
   }
 
+  if (isStreaming) {
+    // If currently streaming, pause it
+    isStreaming = false;
+    elements.streamNewsBtn.textContent = 'Resume Stream';
+    return;
+  }
+
+  // Starting or resuming stream
+  isStreaming = true;
+  elements.streamNewsBtn.textContent = 'Pause Stream';
   setLoading('streamNewsBtn', true);
   elements.stopNewsBtn.disabled = false;
-  elements.newsOutput.textContent = "";
+  
+  if (!currentStream) {
+    // Only initialize new stream if we don't have one
+    const topic = elements.newsTopic.value;
+    if (!elements.newsOutput.textContent) {
+      elements.newsOutput.textContent = "";
+    }
+    log(`News story streaming requested for topic: "${topic}"`, 'info');
+
+    try {
+      const input = await templates.apply('news', {
+        category: elements.newsCategory.value,
+        topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
+        style: elements.newsStyle.value,
+        tone: elements.newsTone.value
+      });
+      
+      log(`Template applied: ${input}`, 'info');
+      currentStream = streamNews(input);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        const errorMsg = handleRateLimit(error);
+        elements.newsOutput.textContent = `Error: ${errorMsg}`;
+        isStreaming = false;
+        elements.streamNewsBtn.textContent = 'Stream';
+        setLoading('streamNewsBtn', false);
+        elements.stopNewsBtn.disabled = true;
+        currentStream = null;
+        return;
+      }
+    }
+  }
 
   try {
-    const input = await templates.apply('news', {
-      category: elements.newsCategory.value,
-      topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
-      style: elements.newsStyle.value,
-      tone: elements.newsTone.value
-    });
-    
-    log(`Streaming news with input: ${input}`, 'info');
-    
-    currentNewsStream = streamNews(input);
-    for await (const content of currentNewsStream) {
+    // Continue streaming from where we left off
+    for await (const content of currentStream) {
+      if (!isStreaming) {
+        break;  // Exit the loop if streaming is paused
+      }
       elements.newsOutput.textContent += content;
+    }
+    
+    if (!isStreaming) {
+      setLoading('streamNewsBtn', false);  // Update button state when paused
+    } else {
+      // Stream completed normally
+      setLoading('streamNewsBtn', false);
+      elements.stopNewsBtn.disabled = true;
+      currentStream = null;
+      isStreaming = false;
+      elements.streamNewsBtn.textContent = 'Stream';
     }
   } catch (error) {
     if (error.name !== "AbortError") {
@@ -611,19 +691,26 @@ elements.streamNewsBtn.onclick = async () => {
       elements.newsOutput.textContent = `Error: ${errorMsg}`;
     }
   } finally {
-    setLoading('streamNewsBtn', false);
-    elements.stopNewsBtn.disabled = true;
-    currentNewsStream = null;
+    if (isStreaming) {  // Only reset if we weren't manually paused
+      setLoading('streamNewsBtn', false);
+      elements.stopNewsBtn.disabled = true;
+      currentStream = null;
+      isStreaming = false;
+      elements.streamNewsBtn.textContent = 'Stream';
+    }
   }
 };
 
-elements.stopNewsBtn.onclick = () => {
-  if (currentNewsStream) {
-    currentNewsStream.return();
-    setLoading('streamNewsBtn', false);
-    elements.stopNewsBtn.disabled = true;
-  }
-};
+      elements.stopNewsBtn.onclick = () => {
+        if (currentStream) {
+          currentStream.return();
+          setLoading('streamNewsBtn', false);
+          elements.stopNewsBtn.disabled = true;
+          isStreaming = false;
+          elements.streamNewsBtn.textContent = 'Stream';
+          currentStream = null;
+        }
+      };
 
       const analyzeSentiment = async (input) => {
         const start = Date.now();
@@ -728,104 +815,43 @@ elements.stopNewsBtn.onclick = () => {
         }
       };
 
-      let currentStream = null;
-
-      const streamStory = async function* (input) {
-  log(`Starting story streaming: ${input}`, 'info');
-  try {
-    log('About to call session.promptStreaming...', 'info');
-    const stream = await session.promptStreaming(input);
-    log('Stream initialized', 'info');
-    
-    let buffer = '';
-    let chunkCount = 0;
-    let requestedLength = parseInt(elements.fictionLength.value);
-    
-    for await (const chunk of stream) {
-      chunkCount++;
-      log(`Raw chunk ${chunkCount}: ${typeof chunk}`, 'info');
-      
-      if (chunk === null || chunk === undefined) {
-        continue;
-      }
-      
-      // We should now be receiving strings directly
-      if (typeof chunk === 'string') {
-        const content = chunk.trim();
-        if (content) {
-          buffer += ' ' + content;
-          
-          // Split into sentences for more natural streaming
-          const sentences = buffer.match(/[^.!?]+[.!?]+/g) || [];
-          
-          if (sentences.length > 0) {
-            // Keep the last partial sentence in the buffer
-            buffer = sentences.pop() || '';
-            
-            // Stream complete sentences
-            for (const sentence of sentences) {
-              const sentenceWords = sentence.trim().split(/\s+/).filter(w => w.length > 0);
-              log(`Streaming sentence with ${sentenceWords.length} words`, 'info');
-              yield sentence.trim() + ' ';
-            }
-          }
+      elements.streamNewsBtn.onclick = async () => {
+        if (elements.modelStatus.textContent.includes('Rate limited')) {
+          log('Cannot stream while rate limited', 'error');
+          return;
         }
-      } else {
-        log(`Unexpected chunk type: ${typeof chunk}`, 'warn');
-      }
-    }
-    
-    // Stream any remaining content in the buffer
-    if (buffer.trim()) {
-      log(`Streaming final buffer: ${buffer.trim()}`, 'info');
-      yield buffer.trim();
-    }
-    
-    log(`Stream finished. Total chunks: ${chunkCount}`, 'info');
-  } catch (error) {
-    log(`Streaming error: ${error.message}`, 'error');
-    log(`Error stack: ${error.stack}`, 'error');
-    throw error;
-  }
-};
 
-elements.streamNewsBtn.onclick = async () => {
-  if (elements.modelStatus.textContent.includes('Rate limited')) {
-    log('Cannot stream while rate limited', 'error');
-    return;
-  }
+        setLoading('streamNewsBtn', true);
+        elements.stopNewsBtn.disabled = false;
+        const topic = elements.newsTopic.value;
+        elements.newsOutput.textContent = "";
+        log(`News story streaming requested for topic: "${topic}"`, 'info');
 
-  setLoading('streamNewsBtn', true);
-  elements.stopNewsBtn.disabled = false;
-  const topic = elements.newsTopic.value;
-  elements.newsOutput.textContent = "";
-  log(`News story streaming requested for topic: "${topic}"`, 'info');
-
-  try {
-    const input = await templates.apply('news', {
-      category: elements.newsCategory.value,
-      topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
-      style: elements.newsStyle.value,
-      tone: elements.newsTone.value
-    });
-    
-    log(`Template applied: ${input}`, 'info');
-    
-    currentStream = streamNews(input);
-    for await (const content of currentStream) {
-      elements.newsOutput.textContent += content;
-    }
-  } catch (error) {
-    if (error.name !== "AbortError") {
-      const errorMsg = handleRateLimit(error);
-      elements.newsOutput.textContent = `Error: ${errorMsg}`;
-    }
-  } finally {
-    setLoading('streamNewsBtn', false);
-    elements.stopNewsBtn.disabled = true;
-    currentStream = null;
-  }
-};
+        try {
+          const input = await templates.apply('news', {
+            category: elements.newsCategory.value,
+            topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
+            style: elements.newsStyle.value,
+            tone: elements.newsTone.value
+          });
+          
+          log(`Template applied: ${input}`, 'info');
+          
+          currentStream = streamNews(input);
+          for await (const content of currentStream) {
+            elements.newsOutput.textContent += content;
+          }
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            const errorMsg = handleRateLimit(error);
+            elements.newsOutput.textContent = `Error: ${errorMsg}`;
+          }
+        } finally {
+          setLoading('streamNewsBtn', false);
+          elements.stopNewsBtn.disabled = true;
+          currentStream = null;
+        }
+      };
 
       elements.stopNewsBtn.onclick = () => {
         if (currentStream) {
@@ -883,6 +909,21 @@ elements.streamNewsBtn.onclick = async () => {
 
       // Call initialize on load
       initializeSession();
+
+      elements.clearTranslateBtn.onclick = () => {
+        elements.translateOutput.textContent = "";
+      };
+
+      elements.clearFictionBtn.onclick = () => {
+        elements.fictionOutput.textContent = "";
+      };
+
+      elements.clearNewsBtn.onclick = () => {
+        elements.newsOutput.textContent = "";
+      };
+      elements.clearSentimentBtn.onclick = () => {
+        elements.jsonOutput.textContent = "";
+      };
     </script>
   </body>
 </html>

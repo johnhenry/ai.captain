@@ -38,7 +38,7 @@ test('Session', async (t) => {
   await t.test('promptStreaming', async () => {
     const session = await Session.create();
     const streamPromise = session.promptStreaming('Tell me a joke');
-    const stream = await streamPromise; // Resolve the promise
+    const stream = await streamPromise; // Resolve the promise before the loop
     assert.ok(stream instanceof ReadableStream);
 
     let fullResponse = '';
@@ -133,7 +133,7 @@ test('Session', async (t) => {
 
     // Prompt with a signal that is not aborted
     const streamPromise = session.promptStreaming('Tell me a joke', { signal });
-    const stream = await streamPromise; // Resolve the promise
+    const stream = await streamPromise; // Resolve the promise before the loop
     assert.ok(stream instanceof ReadableStream);
 
     let fullResponse = '';
@@ -150,7 +150,8 @@ test('Session', async (t) => {
 
     // Prompt with an aborted signal
     controller.abort();
-    await assert.rejects(session.promptStreaming('Test prompt', { signal }), { name: 'AbortError' });
+    const streamPromise2 = await session.promptStreaming('Test prompt', { signal }); // Await the call
+    await assert.rejects(streamPromise2, { name: 'AbortError' }); // Await the promise rejection
 
     await session.destroy();
   });
@@ -165,7 +166,7 @@ test('Session', async (t) => {
 
     // Prompt with a signal that is not aborted
     const streamPromise = session.promptStreaming('Tell me a joke', { signal: promptSignal });
-    const stream = await streamPromise; // Resolve the promise
+    const stream = await streamPromise; // Resolve the promise before the loop
     assert.ok(stream instanceof ReadableStream);
 
     let fullResponse = '';
@@ -182,11 +183,13 @@ test('Session', async (t) => {
 
     // Prompt with an aborted signal
     promptController.abort();
-    await assert.rejects(session.promptStreaming('Test prompt', { signal: promptSignal }), { name: 'AbortError' });
+    const streamPromise2 = await session.promptStreaming('Test prompt', { signal: promptSignal }); // Await the call
+    await assert.rejects(streamPromise2, { name: 'AbortError' }); // Await the promise rejection
 
     // Prompt with session signal aborted
     sessionController.abort();
-    await assert.rejects(session.promptStreaming('Test prompt', { signal: promptSignal }), { name: 'AbortError' });
+    const streamPromise3 = await session.promptStreaming('Test prompt', { signal: promptSignal }); // Await the call
+    await assert.rejects(streamPromise3, { name: 'AbortError' }); // Await the promise rejection
 
     await session.destroy();
   });
