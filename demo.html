@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WindowChain Demo</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
   </head>
   <body class="bg-gray-100 p-8">
     <div class="max-w-4xl mx-auto">
@@ -14,12 +15,18 @@
       <div class="bg-white p-6 rounded-lg shadow-md mb-8">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-semibold">Model Status</h2>
-          <button
-            id="resetBtn"
-            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-          >
-            Reset Session
-          </button>
+          <div class="flex space-x-2">
+            <label class="inline-flex items-center">
+              <input type="checkbox" id="markdownToggle" class="form-checkbox" checked>
+              <span class="ml-2">Render Markdown</span>
+            </label>
+            <button
+              id="resetBtn"
+              class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              Reset Session
+            </button>
+          </div>
         </div>
         <p id="modelStatus">Checking model availability...</p>
         <div id="downloadProgress" class="hidden mt-4">
@@ -89,7 +96,7 @@
           </div>
           <div
             id="translateOutput"
-            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full markdown-content"
           ></div>
         </div>
       </div>
@@ -163,7 +170,7 @@
           </div>
           <div
             id="fictionOutput"
-            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full markdown-content"
           ></div>
         </div>
       </div>
@@ -245,7 +252,7 @@
           </div>
           <div
             id="newsOutput"
-            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full"
+            class="p-4 bg-gray-50 rounded min-h-[100px] whitespace-pre-wrap w-full markdown-content"
           ></div>
         </div>
       </div>
@@ -294,127 +301,157 @@
         CompositionChains
       } from "./src/index.js";
 
-// Helper function for logging
-const log = (message, type = 'info') => {
-  const timestamp = new Date().toISOString();
-  const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
-  console.log(logMessage);
-  
-  // Also display in UI if there's a log container
-  const logContainer = document.getElementById('logContainer');
-  if (logContainer) {
-    const logEntry = document.createElement('div');
-    logEntry.className = `text-sm ${type === 'error' ? 'text-red-600' : 'text-gray-600'}`;
-    logEntry.textContent = logMessage;
-    logContainer.insertBefore(logEntry, logContainer.firstChild);
-    
-    // Keep only last 50 messages
-    while (logContainer.children.length > 50) {
-      logContainer.removeChild(logContainer.lastChild);
-    }
-  }
-};
-// Helper function to handle rate limits
-const handleRateLimit = (error) => {
-  if (error.message.includes('rate limit exceeded')) {
-    const match = error.message.match(/try again in about (\d+)/i);
-    const waitTime = match ? match[1] : '60';
-    const message = `Rate limit exceeded. Please wait ${waitTime} minutes before trying again.`;
-    log(message, 'error');
-    
-    // Update model status to show rate limit
-    elements.modelStatus.textContent = `Rate limited - Please wait ${waitTime} minutes`;
-    elements.modelStatus.className = 'text-red-600';
-    
-    // Set a timer to update the status
-    const waitMs = parseInt(waitTime) * 60 * 1000;
-    setTimeout(() => {
-      elements.modelStatus.textContent = 'Model ready';
-      elements.modelStatus.className = 'text-green-600';
-    }, waitMs);
-    
-    return message;
-  }
-  return error.message;
-};
+      // Initialize markdown-it
+      const md = window.markdownit();
+      let markdownEnabled = true;
 
-// Add retry button for rate-limited operations
-const retryWithBackoff = async (operation, maxRetries = 3) => {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (error.message.includes('rate limit exceeded')) {
-        const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
-        log(`Retry attempt ${attempt}/${maxRetries} after ${waitTime/1000}s`, 'info');
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw new Error(`Failed after ${maxRetries} retries`);
-};
+      // Helper function for rendering markdown
+      const renderMarkdown = (content, element) => {
+        if (!content || !element) return;
+        
+        if (markdownEnabled && typeof content === 'string') {
+          element.innerHTML = md.render(content);
+        } else {
+          element.textContent = content;
+        }
+      };
 
-// Update model status display
-const updateModelStatus = (status, isError = false) => {
-  elements.modelStatus.textContent = status;
-  elements.modelStatus.className = isError ? 'text-red-600' : 'text-green-600';
-};
+      // Re-render all markdown content
+      const reRenderAllMarkdown = () => {
+        if (elements.translateOutput.textContent) {
+          renderMarkdown(elements.translateOutput.textContent, elements.translateOutput);
+        }
+        if (elements.fictionOutput.textContent) {
+          renderMarkdown(elements.fictionOutput.textContent, elements.fictionOutput);
+        }
+        if (elements.newsOutput.textContent) {
+          renderMarkdown(elements.newsOutput.textContent, elements.newsOutput);
+        }
+      };
 
-// Initialize session with retry
-const initializeSession = async () => {
-  try {
-    updateModelStatus('Initializing model...');
-    session = await Session.create({
-      topK: 1,
-      temperature: 0.7
-    });
-    updateModelStatus('Model ready');
-    log('Session initialized successfully', 'info');
-  } catch (error) {
-    const errorMsg = handleRateLimit(error);
-    updateModelStatus(errorMsg, true);
-    log(`Session initialization failed: ${errorMsg}`, 'error');
-  }
-};
+      // Helper function for logging
+      const log = (message, type = 'info') => {
+        const timestamp = new Date().toISOString();
+        const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+        console.log(logMessage);
+        
+        // Also display in UI if there's a log container
+        const logContainer = document.getElementById('logContainer');
+        if (logContainer) {
+          const logEntry = document.createElement('div');
+          logEntry.className = `text-sm ${type === 'error' ? 'text-red-600' : 'text-gray-600'}`;
+          logEntry.textContent = logMessage;
+          logContainer.insertBefore(logEntry, logContainer.firstChild);
+          
+          // Keep only last 50 messages
+          while (logContainer.children.length > 50) {
+            logContainer.removeChild(logContainer.lastChild);
+          }
+        }
+      };
 
-// DOM Elements
-const elements = {
-  modelStatus: document.getElementById("modelStatus"),
-  resetBtn: document.getElementById("resetBtn"),
-  downloadProgress: document.getElementById("downloadProgress"),
-  downloadBar: document.getElementById("downloadBar"),
-  downloadText: document.getElementById("downloadText"),
-  translateText: document.getElementById("translateText"),
-  translateLang: document.getElementById("translateLang"),
-  translateBtn: document.getElementById("translateBtn"),
-  translateWithRetryBtn: document.getElementById("translateWithRetryBtn"),
-  translateOutput: document.getElementById("translateOutput"),
-  clearTranslateBtn: document.getElementById("clearTranslateBtn"),
-  // Fiction Generator elements
-  fictionGenre: document.getElementById("fictionGenre"),
-  fictionTheme: document.getElementById("fictionTheme"),
-  fictionLength: document.getElementById("fictionLength"),
-  fictionLengthDisplay: document.getElementById("fictionLengthDisplay"),
-  fictionStyle: document.getElementById("fictionStyle"),
-  generateFictionBtn: document.getElementById("generateFictionBtn"),
-  fictionOutput: document.getElementById("fictionOutput"),
-  clearFictionBtn: document.getElementById("clearFictionBtn"),
-  // News Generator elements
-  newsCategory: document.getElementById("newsCategory"),
-  newsTopic: document.getElementById("newsTopic"),
-  newsStyle: document.getElementById("newsStyle"),
-  newsTone: document.getElementById("newsTone"),
-  streamNewsBtn: document.getElementById("streamNewsBtn"),
-  stopNewsBtn: document.getElementById("stopNewsBtn"),
-  newsOutput: document.getElementById("newsOutput"),
-  clearNewsBtn: document.getElementById("clearNewsBtn"),
-  clearSentimentBtn: document.getElementById("clearSentimentBtn"),
-  jsonInput: document.getElementById("jsonInput"),
-  analyzeBtn: document.getElementById("analyzeBtn"),
-  jsonOutput: document.getElementById("jsonOutput"),
-};
+      // Helper function to handle rate limits
+      const handleRateLimit = (error) => {
+        if (error.message.includes('rate limit exceeded')) {
+          const match = error.message.match(/try again in about (\d+)/i);
+          const waitTime = match ? match[1] : '60';
+          const message = `Rate limit exceeded. Please wait ${waitTime} minutes before trying again.`;
+          log(message, 'error');
+          
+          // Update model status to show rate limit
+          elements.modelStatus.textContent = `Rate limited - Please wait ${waitTime} minutes`;
+          elements.modelStatus.className = 'text-red-600';
+          
+          // Set a timer to update the status
+          const waitMs = parseInt(waitTime) * 60 * 1000;
+          setTimeout(() => {
+            elements.modelStatus.textContent = 'Model ready';
+            elements.modelStatus.className = 'text-green-600';
+          }, waitMs);
+          
+          return message;
+        }
+        return error.message;
+      };
+
+      // Add retry button for rate-limited operations
+      const retryWithBackoff = async (operation, maxRetries = 3) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            return await operation();
+          } catch (error) {
+            if (error.message.includes('rate limit exceeded')) {
+              const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+              log(`Retry attempt ${attempt}/${maxRetries} after ${waitTime/1000}s`, 'info');
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
+            }
+            throw error;
+          }
+        }
+        throw new Error(`Failed after ${maxRetries} retries`);
+      };
+
+      // Update model status display
+      const updateModelStatus = (status, isError = false) => {
+        elements.modelStatus.textContent = status;
+        elements.modelStatus.className = isError ? 'text-red-600' : 'text-green-600';
+      };
+
+      // Initialize session with retry
+      const initializeSession = async () => {
+        try {
+          updateModelStatus('Initializing model...');
+          session = await Session.create({
+            topK: 1,
+            temperature: 0.7
+          });
+          updateModelStatus('Model ready');
+          log('Session initialized successfully', 'info');
+        } catch (error) {
+          const errorMsg = handleRateLimit(error);
+          updateModelStatus(errorMsg, true);
+          log(`Session initialization failed: ${errorMsg}`, 'error');
+        }
+      };
+
+      // DOM Elements
+      const elements = {
+        modelStatus: document.getElementById("modelStatus"),
+        resetBtn: document.getElementById("resetBtn"),
+        markdownToggle: document.getElementById("markdownToggle"),
+        downloadProgress: document.getElementById("downloadProgress"),
+        downloadBar: document.getElementById("downloadBar"),
+        downloadText: document.getElementById("downloadText"),
+        translateText: document.getElementById("translateText"),
+        translateLang: document.getElementById("translateLang"),
+        translateBtn: document.getElementById("translateBtn"),
+        translateWithRetryBtn: document.getElementById("translateWithRetryBtn"),
+        translateOutput: document.getElementById("translateOutput"),
+        clearTranslateBtn: document.getElementById("clearTranslateBtn"),
+        // Fiction Generator elements
+        fictionGenre: document.getElementById("fictionGenre"),
+        fictionTheme: document.getElementById("fictionTheme"),
+        fictionLength: document.getElementById("fictionLength"),
+        fictionLengthDisplay: document.getElementById("fictionLengthDisplay"),
+        fictionStyle: document.getElementById("fictionStyle"),
+        generateFictionBtn: document.getElementById("generateFictionBtn"),
+        fictionOutput: document.getElementById("fictionOutput"),
+        clearFictionBtn: document.getElementById("clearFictionBtn"),
+        // News Generator elements
+        newsCategory: document.getElementById("newsCategory"),
+        newsTopic: document.getElementById("newsTopic"),
+        newsStyle: document.getElementById("newsStyle"),
+        newsTone: document.getElementById("newsTone"),
+        streamNewsBtn: document.getElementById("streamNewsBtn"),
+        stopNewsBtn: document.getElementById("stopNewsBtn"),
+        newsOutput: document.getElementById("newsOutput"),
+        clearNewsBtn: document.getElementById("clearNewsBtn"),
+        clearSentimentBtn: document.getElementById("clearSentimentBtn"),
+        jsonInput: document.getElementById("jsonInput"),
+        analyzeBtn: document.getElementById("analyzeBtn"),
+        jsonOutput: document.getElementById("jsonOutput"),
+      };
 
       // Initialize components
       let session;
@@ -518,188 +555,162 @@ const elements = {
         }
       };
 
-// Fiction Generator
-const generateFiction = async (input) => {
-  const start = Date.now();
-  try {
-    const response = await session.prompt(input);
-    analytics.record('responseTime', Date.now() - start);
-    analytics.record('successRate', 1);
-    return response;
-  } catch (error) {
-    analytics.record('errorRate', 1);
-    throw error;
-  }
-};
+      // Fiction Generator
+      const generateFiction = async (input) => {
+        const start = Date.now();
+        try {
+          const response = await session.prompt(input);
+          analytics.record('responseTime', Date.now() - start);
+          analytics.record('successRate', 1);
+          return response;
+        } catch (error) {
+          analytics.record('errorRate', 1);
+          throw error;
+        }
+      };
 
-// News Story Generator with streaming
-const streamNews = async function* (input) {
-  log(`Starting news streaming: ${input}`, 'info');
-  try {
-    const stream = await session.promptStreaming(input);
-    log('Stream initialized', 'info');
-    
-    let buffer = '';
-    let chunkCount = 0;
-    
-    for await (const chunk of stream) {
-      chunkCount++;
-      log(`Raw chunk ${chunkCount}: ${typeof chunk}`, 'info');
-      
-      if (chunk === null || chunk === undefined) {
-        continue;
-      }
-      
-      if (typeof chunk === 'string') {
-        const content = chunk.trim();
-        if (content) {
-          buffer += ' ' + content;
+      // News Story Generator with streaming
+      const streamNews = async function* (input) {
+        log(`Starting news streaming: ${input}`, 'info');
+        try {
+          const stream = await session.promptStreaming(input);
+          log('Stream initialized', 'info');
+          let content = elements.newsOutput.textContent || '';
+
+          for await (const chunk of stream) {
+            if (chunk === null || chunk === undefined) continue;
+
+            if (typeof chunk === 'string') {
+              content += chunk;
+              elements.newsOutput.textContent = content;
+              // if (markdownEnabled) {
+              //   renderMarkdown(content, elements.newsOutput);
+              // }
+
+              yield chunk;
+            }
+          }
+        } catch (error) {
+          log(`Streaming error: ${error.message}`, 'error');
+          throw error;
+        }
+      };
+
+      // Update fiction length display
+      elements.fictionLength.oninput = () => {
+        elements.fictionLengthDisplay.textContent = elements.fictionLength.value;
+      };
+
+      // Fiction Generator handler
+      elements.generateFictionBtn.onclick = async () => {
+        setLoading('generateFictionBtn', true);
+        try {
+          const input = await templates.apply('fiction', {
+            genre: elements.fictionGenre.value,
+            theme: elements.fictionTheme.value,
+            length: elements.fictionLength.value,
+            style: elements.fictionStyle.value
+          });
           
-          // Split into sentences for more natural streaming
-          const sentences = buffer.match(/[^.!?]+[.!?]+/g) || [];
-          
-          if (sentences.length > 0) {
-            // Keep the last partial sentence in the buffer
-            buffer = sentences.pop() || '';
+          log(`Generating fiction with input: ${input}`, 'info');
+          elements.fictionOutput.textContent = await generateFiction(input);
+        } catch (error) {
+          const errorMsg = handleRateLimit(error);
+          elements.fictionOutput.textContent = `Error: ${errorMsg}`;
+        } finally {
+          setLoading('generateFictionBtn', false);
+        }
+      };
+
+      // News Generator handler
+      elements.streamNewsBtn.onclick = async () => {
+        if (elements.modelStatus.textContent.includes('Rate limited')) {
+          log('Cannot stream while rate limited', 'error');
+          return;
+        }
+
+        if (isStreaming) {
+          // If currently streaming, pause it
+          isStreaming = false;
+          elements.streamNewsBtn.textContent = 'Resume Stream';
+          return;
+        }
+
+        // Starting or resuming stream
+        isStreaming = true;
+        elements.streamNewsBtn.textContent = 'Pause Stream';
+        setLoading('streamNewsBtn', true);
+        elements.stopNewsBtn.disabled = false;
+        
+        if (!currentStream) {
+          // Only initialize new stream if we don't have one
+          const topic = elements.newsTopic.value;
+          if (!elements.newsOutput.textContent) {
+            elements.newsOutput.textContent = "";
+          }
+          log(`News story streaming requested for topic: "${topic}"`, 'info');
+
+          try {
+            const input = await templates.apply('news', {
+              category: elements.newsCategory.value,
+              topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
+              style: elements.newsStyle.value,
+              tone: elements.newsTone.value
+            });
             
-            // Stream complete sentences
-            for (const sentence of sentences) {
-              log(`Streaming sentence: ${sentence.trim()}`, 'info');
-              yield sentence.trim() + ' ';
+            log(`Template applied: ${input}`, 'info');
+            currentStream = streamNews(input);
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              const errorMsg = handleRateLimit(error);
+              elements.newsOutput.textContent = `Error: ${errorMsg}`;
+              isStreaming = false;
+              elements.streamNewsBtn.textContent = 'Stream';
+              setLoading('streamNewsBtn', false);
+              elements.stopNewsBtn.disabled = true;
+              currentStream = null;
+              return;
             }
           }
         }
-      } else {
-        log(`Unexpected chunk type: ${typeof chunk}`, 'warn');
-      }
-    }
-    
-    // Stream any remaining content in the buffer
-    if (buffer.trim()) {
-      log(`Streaming final buffer: ${buffer.trim()}`, 'info');
-      yield buffer.trim();
-    }
-    
-    log(`Stream finished. Total chunks: ${chunkCount}`, 'info');
-  } catch (error) {
-    log(`Streaming error: ${error.message}`, 'error');
-    log(`Error stack: ${error.stack}`, 'error');
-    throw error;
-  }
-};
 
-// Update fiction length display
-elements.fictionLength.oninput = () => {
-  elements.fictionLengthDisplay.textContent = elements.fictionLength.value;
-};
-
-// Fiction Generator handler
-elements.generateFictionBtn.onclick = async () => {
-  setLoading('generateFictionBtn', true);
-  try {
-    const input = await templates.apply('fiction', {
-      genre: elements.fictionGenre.value,
-      theme: elements.fictionTheme.value,
-      length: elements.fictionLength.value,
-      style: elements.fictionStyle.value
-    });
-    
-    log(`Generating fiction with input: ${input}`, 'info');
-    elements.fictionOutput.textContent = await generateFiction(input);
-  } catch (error) {
-    const errorMsg = handleRateLimit(error);
-    elements.fictionOutput.textContent = `Error: ${errorMsg}`;
-  } finally {
-    setLoading('generateFictionBtn', false);
-  }
-};
-
-// News Generator handler
-elements.streamNewsBtn.onclick = async () => {
-  if (elements.modelStatus.textContent.includes('Rate limited')) {
-    log('Cannot stream while rate limited', 'error');
-    return;
-  }
-
-  if (isStreaming) {
-    // If currently streaming, pause it
-    isStreaming = false;
-    elements.streamNewsBtn.textContent = 'Resume Stream';
-    return;
-  }
-
-  // Starting or resuming stream
-  isStreaming = true;
-  elements.streamNewsBtn.textContent = 'Pause Stream';
-  setLoading('streamNewsBtn', true);
-  elements.stopNewsBtn.disabled = false;
-  
-  if (!currentStream) {
-    // Only initialize new stream if we don't have one
-    const topic = elements.newsTopic.value;
-    if (!elements.newsOutput.textContent) {
-      elements.newsOutput.textContent = "";
-    }
-    log(`News story streaming requested for topic: "${topic}"`, 'info');
-
-    try {
-      const input = await templates.apply('news', {
-        category: elements.newsCategory.value,
-        topic: elements.newsTopic.value || 'recent developments in ' + elements.newsCategory.value,
-        style: elements.newsStyle.value,
-        tone: elements.newsTone.value
-      });
-      
-      log(`Template applied: ${input}`, 'info');
-      currentStream = streamNews(input);
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        const errorMsg = handleRateLimit(error);
-        elements.newsOutput.textContent = `Error: ${errorMsg}`;
-        isStreaming = false;
-        elements.streamNewsBtn.textContent = 'Stream';
-        setLoading('streamNewsBtn', false);
-        elements.stopNewsBtn.disabled = true;
-        currentStream = null;
-        return;
-      }
-    }
-  }
-
-  try {
-    // Continue streaming from where we left off
-    for await (const content of currentStream) {
-      if (!isStreaming) {
-        break;  // Exit the loop if streaming is paused
-      }
-      elements.newsOutput.textContent += content;
-    }
-    
-    if (!isStreaming) {
-      setLoading('streamNewsBtn', false);  // Update button state when paused
-    } else {
-      // Stream completed normally
-      setLoading('streamNewsBtn', false);
-      elements.stopNewsBtn.disabled = true;
-      currentStream = null;
-      isStreaming = false;
-      elements.streamNewsBtn.textContent = 'Stream';
-    }
-  } catch (error) {
-    if (error.name !== "AbortError") {
-      const errorMsg = handleRateLimit(error);
-      elements.newsOutput.textContent = `Error: ${errorMsg}`;
-    }
-  } finally {
-    if (isStreaming) {  // Only reset if we weren't manually paused
-      setLoading('streamNewsBtn', false);
-      elements.stopNewsBtn.disabled = true;
-      currentStream = null;
-      isStreaming = false;
-      elements.streamNewsBtn.textContent = 'Stream';
-    }
-  }
-};
+        try {
+          // Continue streaming from where we left off
+          for await (const content of currentStream) {
+            if (!isStreaming) {
+              break;  // Exit the loop if streaming is paused
+            }
+            elements.newsOutput.textContent = "";
+            if (markdownEnabled) {
+              renderMarkdown(elements.newsOutput.textContent, elements.newsOutput);
+            }
+          }
+          
+          if (!isStreaming) {
+            setLoading('streamNewsBtn', false);  // Update button state when paused
+          } else {
+            // Stream completed normally
+            setLoading('streamNewsBtn', false);
+            elements.stopNewsBtn.disabled = true;
+            currentStream = null;
+            isStreaming = false;
+            elements.streamNewsBtn.textContent = 'Stream';
+          }
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            const errorMsg = handleRateLimit(error);
+            elements.newsOutput.textContent = `Error: ${errorMsg}`;
+          }
+        } finally {
+          if (isStreaming) {  // Only reset if we weren't manually paused
+            setLoading('streamNewsBtn', false);
+            elements.stopNewsBtn.disabled = true;
+            currentStream = null;
+            isStreaming = false;
+            elements.streamNewsBtn.textContent = 'Stream';
+          }
+        }
+      };
 
       elements.stopNewsBtn.onclick = () => {
         if (currentStream) {
@@ -772,6 +783,7 @@ elements.streamNewsBtn.onclick = async () => {
             cacheKey,
             () => translate(prompt)
           );
+          renderMarkdown(elements.translateOutput.textContent, elements.translateOutput);
         } catch (error) {
           elements.translateOutput.textContent = `Error: ${error.message}`;
         } finally {
@@ -790,6 +802,7 @@ elements.streamNewsBtn.onclick = async () => {
             cacheKey,
             () => translateWithRetry(prompt)
           );
+          renderMarkdown(elements.translateOutput.textContent, elements.translateOutput);
         } catch (error) {
           elements.translateOutput.textContent = `Error: ${error.message}`;
         } finally {
@@ -808,6 +821,7 @@ elements.streamNewsBtn.onclick = async () => {
             cacheKey,
             () => generateFiction(prompt)
           );
+          renderMarkdown(elements.fictionOutput.textContent, elements.fictionOutput);
         } catch (error) {
           elements.fictionOutput.textContent = `Error: ${error.message}`;
         } finally {
@@ -839,7 +853,8 @@ elements.streamNewsBtn.onclick = async () => {
           
           currentStream = streamNews(input);
           for await (const content of currentStream) {
-            elements.newsOutput.textContent += content;
+            elements.newsOutput.textContent = content;
+            renderMarkdown(elements.newsOutput.textContent, elements.newsOutput);
           }
         } catch (error) {
           if (error.name !== "AbortError") {
@@ -923,6 +938,11 @@ elements.streamNewsBtn.onclick = async () => {
       };
       elements.clearSentimentBtn.onclick = () => {
         elements.jsonOutput.textContent = "";
+      };
+
+      elements.markdownToggle.onchange = (e) => {
+        markdownEnabled = e.target.checked;
+        reRenderAllMarkdown();
       };
     </script>
   </body>
