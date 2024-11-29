@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { windowAI } from '../window.ai.mock.mjs';
+import { windowAI } from './window.ai.mock.mjs';
 
 // Replace global window.ai with the mock implementation
 globalThis.ai = windowAI;
