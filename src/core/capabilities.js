@@ -1,5 +1,5 @@
 /**
- * Enhanced capabilities wrapper for Window.ai
+ * Enhanced capabilities wrapper for window.ai
  */
 
 // Determine if running in a browser environment
@@ -21,7 +21,7 @@ export class Capabilities {
   }
 
   /**
-   * Get current Window.ai capabilities
+   * Get current window.ai capabilities
    * @returns {Promise<Capabilities>} Capabilities instance
    */
   static async get() {
@@ -29,7 +29,7 @@ export class Capabilities {
     const ai = isBrowser ? window.ai : globalThis.ai;
 
     if (!ai) {
-      throw new Error('Window.ai API not available');
+      throw new Error('window.ai API not available');
     }
 
     const capabilities = await ai.languageModel.capabilities();

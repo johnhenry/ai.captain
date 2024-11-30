@@ -1,7 +1,7 @@
 {
   "name": "window-chain",
   "version": "0.1.0",
-  "description": "Window Chain is a powerful utility library that bridges Window.ai's language model capabilities with LangChain-style patterns and abstractions. It provides a comprehensive set of tools for building robust AI-powered applications using Window.ai's in-browser language models.",
+  "description": "Window Chain is a powerful utility library that bridges window.ai's language model capabilities with LangChain-style patterns and abstractions. It provides a comprehensive set of tools for building robust AI-powered applications using window.ai's in-browser language models.",
   "type": "module",
   "main": "src/index.js",
   "exports": {

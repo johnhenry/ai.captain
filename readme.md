@@ -1,10 +1,10 @@
 # Window Chain
 
-A powerful, modular library for integrating with Window.ai, featuring advanced template processing, caching, composition, and monitoring capabilities.
+A powerful, modular library for integrating with window.ai, featuring advanced template processing, caching, composition, and monitoring capabilities.
 
 ## Features
 
-- **Session Management**: Robust session handling with Window.ai
+- **Session Management**: Robust session handling with window.ai
 - **Template System**: Advanced template processing with inheritance and validation
 - **Distributed Caching**: Efficient caching with compression support
 - **Function Composition**: Flexible composition patterns for advanced workflows
@@ -57,7 +57,7 @@ console.log(translation); // Hola mundo
 
 ### Session
 
-The `Session` class manages interactions with Window.ai:
+The `Session` class manages interactions with window.ai:
 
 ```javascript
 import { createWindowChain } from 'window-chain';
@@ -227,7 +227,7 @@ function createWindowChain(options?: {
 
 #### WindowChain
 
-The main class for interacting with Window.ai's language models.
+The main class for interacting with window.ai's language models.
 
 ```typescript
 interface WindowChain {
@@ -241,7 +241,7 @@ interface WindowChain {
 
 #### Session
 
-Manages interactions with Window.ai's language models.
+Manages interactions with window.ai's language models.
 
 ```typescript
 class Session {
@@ -361,7 +361,7 @@ Error: "Missing required parameter: [param]"
 Error: "Parent template '[name]' not found"
 
 // Session errors
-Error: "Window.ai API not available"
+Error: "window.ai API not available"
 
 // JSON parsing errors
 SyntaxError: "Unexpected token in JSON"

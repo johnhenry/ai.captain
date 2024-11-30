@@ -1,5 +1,5 @@
 /**
- * Simple composition chains for Window.ai
+ * Simple composition chains for window.ai
  */
 export class CompositionChains {
   constructor(session) {

@@ -1,5 +1,5 @@
 /**
- * Template system for Window.ai prompts
+ * Template system for window.ai prompts
  */
 export class TemplateSystem {
   constructor(session) {

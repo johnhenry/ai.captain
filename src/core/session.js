@@ -1,21 +1,21 @@
 /**
- * Session management for Window.ai
+ * Session management for window.ai
  */
 
 // Determine if running in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
 /**
- * Create a new Window.ai session
+ * Create a new window.ai session
  * @param {Object} options Configuration options
- * @returns {Promise<Object>} Window.ai session
+ * @returns {Promise<Object>} window.ai session
  */
 export async function createSession(options = {}) {
   // Use window.ai if available, otherwise use the mock implementation
   const ai = isBrowser ? window.ai : globalThis.ai;
 
   if (!ai) {
-    throw new Error('Window.ai API not available');
+    throw new Error('window.ai API not available');
   }
 
   const session = await ai.languageModel.create(options);
@@ -23,8 +23,8 @@ export async function createSession(options = {}) {
 }
 
 /**
- * Destroy a Window.ai session
- * @param {Object} session Window.ai session
+ * Destroy a window.ai session
+ * @param {Object} session window.ai session
  * @returns {Promise<void>}
  */
 export async function destroySession(session) {
@@ -32,7 +32,7 @@ export async function destroySession(session) {
 }
 
 /**
- * A class representing a Window.ai session
+ * A class representing a window.ai session
  */
 export class Session {
   #session;
@@ -56,20 +56,20 @@ export class Session {
   }
 
   /**
-   * Send a prompt to the Window.ai session
+   * Send a prompt to the window.ai session
    * @param {string} text Prompt text
    * @param {Object} options Configuration options
-   * @returns {Promise<string>} Response from Window.ai
+   * @returns {Promise<string>} Response from window.ai
    */
   async prompt(text, options = {}) {
     return this.#session.prompt(text, options);
   }
 
   /**
-   * Send a prompt to the Window.ai session and receive a streaming response
+   * Send a prompt to the window.ai session and receive a streaming response
    * @param {string} text Prompt text
    * @param {Object} options Configuration options
-   * @returns {Promise<ReadableStream>} ReadableStream of responses from Window.ai
+   * @returns {Promise<ReadableStream>} ReadableStream of responses from window.ai
    */
   async promptStreaming(text, options = {}) {
     // Return the ReadableStream directly as required by the API spec

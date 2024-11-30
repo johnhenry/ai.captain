@@ -496,12 +496,12 @@
           analytics = new PerformanceAnalytics();
           chains = new CompositionChains(session);
 
-          // Update status once Window.ai is ready
+          // Update status once window.ai is ready
           if (window.ai) {
             elements.modelStatus.textContent = "Model ready!";
             elements.downloadProgress.classList.add("hidden");
           } else {
-            elements.modelStatus.textContent = "Window.ai not available";
+            elements.modelStatus.textContent = "window.ai not available";
           }
 
           // Register templates

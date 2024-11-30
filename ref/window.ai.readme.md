@@ -1,4 +1,4 @@
-# Window.ai.prompt
+# window.ai.prompt
 
 (https://developer.chrome.com/docs/extensions/ai/prompt-api#model_capabilities)
 

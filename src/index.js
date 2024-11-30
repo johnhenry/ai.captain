@@ -1,5 +1,5 @@
 /**
- * Window Chain - A powerful utility library for Window.ai
+ * Window Chain - A powerful utility library for window.ai
  */
 
 // Core
