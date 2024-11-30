@@ -20,36 +20,35 @@ npm install window-chain
 ## Quick Start
 
 ```javascript
-import {
-  Session,
-  TemplateSystem,
-  CompositionBuilder,
-  DistributedCache,
-} from "window-chain";
+import { Session, TemplateSystem, DistributedCache, CompositionBuilder } from "window-chain";
+
+// Initialize session
+const session = await Session.create({ temperature: 0.7, topK: 4 });
 
 // Initialize components
-const session = await Session.create({ temperature: 0.7 });
-const templates = new TemplateSystem(session);
-const cache = new DistributedCache();
+const templates = new TemplateSystem();
+const cache = new DistributedCache({ compression: true });
 const composer = new CompositionBuilder(session);
 
 // Create template
-const translator = templates.create(
+const translator = templates.retister(
   [
     ["system", "You are a helpful translator."],
-    ["human", 'Translate "{text}" to {language}.'],
+    ["user", 'Translate "{text}" to {language}.']
   ],
   ["text", "language"]
 );
 
-// Create enhanced prompt function
-const translate = composer.withCache(cache).build(session.prompt.bind(session));
+// Create enhanced prompt function with caching
+const translate = composer
+  .withCache(cache)
+  .build(async (messages) => await session.prompt(messages));
 
 // Use the template
 const result = await translate(
   translator({
     text: "Hello, world!",
-    language: "Spanish",
+    language: "Spanish"
   })
 );
 ```
@@ -63,12 +62,23 @@ The `Session` class manages interactions with Window.ai:
 ```javascript
 import { Session } from "window-chain";
 
-const session = new Session({
+// Create a new session
+const session = await Session.create({
   temperature: 0.7,
-  onDownloadProgress: (e) => console.log(`Downloaded: ${e.loaded}/${e.total}`),
+  onDownloadProgress: (e) => console.log(`Downloaded: ${e.loaded}/${e.total}`)
 });
 
+// Basic prompt
 const response = await session.prompt("Hello!");
+
+// Stream responses
+for await (const chunk of await session.streamPrompt("Tell me a story")) {
+  console.log(chunk.content);
+}
+
+// Check token usage
+console.log(`Tokens used: ${session.tokensSoFar}`);
+console.log(`Tokens remaining: ${session.tokensLeft}`);
 ```
 
 ### Template System
@@ -78,49 +88,50 @@ Create and manage message templates with validation:
 ```javascript
 import { TemplateSystem, TemplateValidator } from "window-chain";
 
+// Create template system
 const templateSystem = new TemplateSystem();
+
+// Create validator for template variables
 const validator = new TemplateValidator({
   name: "string",
-  age: "number",
+  age: "number"
 });
 
+// Create a template with validation
 const template = templateSystem.create(
-  [["human", "Tell me about {name} who is {age} years old"]],
+  [
+    ["system", "You are a helpful assistant."],
+    ["user", "Tell me about {name} who is {age} years old"]
+  ],
   ["name", "age"]
 );
+
+// Use the template
+const messages = template({
+  name: "Alice",
+  age: 25
+});
 ```
 
 ### Template Inheritance
 
-The template system supports inheritance through a dedicated `inherit` method, allowing you to create specialized templates that build upon base templates. Here's how it works:
-
-1. **Base Template**: Define a base template with placeholders for variables that can be overridden:
+Create specialized templates that build upon base templates:
 
 ```javascript
-templates.register("base", "system: {role}\nhuman: {query}");
+const baseTemplate = [
+  ["system", "You are a {role}."],
+  ["user", "{query}"]
+];
+
+// Create specialized template
+const translatorTemplate = templateSystem.inherit(
+  baseTemplate,
+  {
+    role: "professional translator",
+    query: 'Translate "{text}" to {language}.'
+  }
+);
 ```
-
-2. **Derived Template**: Create a specialized template that inherits from the base, providing default values for some variables:
-
-```javascript
-templates.inherit("translator", "base", { role: "You are a translator" });
-```
-
-3. **Using the Template**: When applying the derived template, you only need to provide the remaining variables:
-
-```javascript
-const result = await templates.apply("translator", {
-  query: 'Translate "hello"',
-});
-// Results in: "system: You are a translator\nhuman: Translate "hello""
-```
-
-The inheritance system allows you to:
-
-- Create reusable base templates with common structure
-- Specialize templates by providing default values
-- Override defaults when applying the template
-- Maintain consistent prompt structure across similar use cases
 
 ### Distributed Cache
 

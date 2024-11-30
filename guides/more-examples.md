@@ -2,123 +2,159 @@
 
 This document provides detailed examples of using WindowChain's various features and capabilities.
 
-## Basic Translation with Templates
-
-The translation demo shows how to use message templates and handle both basic and retry-enabled prompts.
+## Translation with Templates and Streaming
 
 ```javascript
-// Create a message template for translation
-const translateTemplate = createMessageTemplate(
+import { Session, TemplateSystem } from "window-chain";
+
+// Initialize components
+const session = await Session.create({ temperature: 0.7 });
+const templates = new TemplateSystem();
+
+// Create translation template
+const translateTemplate = templates.create(
   [
-    ["system", "You are a helpful translator."],
-    ["human", "Translate '{text}' to {language}."],
+    ["system", "You are a professional translator."],
+    ["user", "Translate '{text}' to {language}."]
   ],
   ["text", "language"]
 );
 
 // Basic translation
-const result = await model.prompt(
+const result = await session.prompt(
   translateTemplate({
     text: "Hello world",
-    language: "Spanish",
+    language: "Spanish"
   })
 );
 
-// Translation with retry capability
-const robustPrompt = withRetry(prompt);
-const result = await robustPrompt(
-  model,
+// Streaming translation
+const stream = await session.streamPrompt(
   translateTemplate({
     text: "Hello world",
-    language: "Spanish",
+    language: "Spanish"
   })
 );
+
+for await (const chunk of stream) {
+  console.log(chunk.content);
+}
 ```
 
-## Story Generation with Streaming
-
-This example demonstrates how to use streaming for real-time text generation with start/stop capabilities.
+## Advanced Composition with Caching and Analytics
 
 ```javascript
-// Basic story generation
-const story = await model.prompt(`Write a short story about ${topic}`);
+import { Session, TemplateSystem, DistributedCache, CompositionBuilder, PerformanceAnalytics } from "window-chain";
 
-// Streaming story generation with abort control
-const abortController = new AbortController();
-const stream = await model.promptStreaming(
-  `Write a short story about ${topic}`,
-  { signal: abortController.signal }
+// Initialize components
+const session = await Session.create();
+const templates = new TemplateSystem();
+const cache = new DistributedCache({ compression: true });
+const analytics = new PerformanceAnalytics();
+
+// Create composition chain
+const composer = new CompositionBuilder(session)
+  .withCache(cache)
+  .withAnalytics(analytics)
+  .build(async (messages) => await session.prompt(messages));
+
+// Create template
+const analyzeTemplate = templates.create(
+  [
+    ["system", "You are an AI trained to analyze text sentiment and extract key points. Respond with a JSON object containing 'sentiment' (string), 'confidence' (number between 0-1), and 'key_points' (array of strings)."],
+    ["user", "Analyze this text: {text}"]
+  ],
+  ["text"]
 );
 
-// Process the stream
-for await (const chunk of stream) {
-  // Handle each chunk of text as it arrives
-  console.log(chunk);
+// Use the composed function
+const result = await composer(
+  analyzeTemplate({
+    text: "This product is amazing! The quality is outstanding and the price is reasonable."
+  })
+);
+
+// Check analytics
+console.log(`Average response time: ${analytics.getAverageResponseTime()}ms`);
+console.log(`Cache hit rate: ${analytics.getCacheHitRate()}%`);
+```
+
+## Model Capabilities and Fallback Handling
+
+```javascript
+import { Session, Capabilities, FallbackSystem } from "window-chain";
+
+// Initialize session and components
+const session = await Session.create();
+const capabilities = new Capabilities(session);
+const fallback = new FallbackSystem();
+
+// Initialize capabilities
+await capabilities.initialize();
+
+// Get available models
+const models = await capabilities.getAvailableModels();
+console.log("Available models:", models);
+
+// Set preferred model with fallback
+try {
+  await capabilities.setModel("gpt-4");
+} catch (error) {
+  console.log("Falling back to alternative model");
+  await capabilities.setModel("gpt-3.5-turbo");
 }
 
-// Stop generation if needed
-abortController.abort();
-```
+// Get current model
+const currentModel = await capabilities.getCurrentModel();
+console.log("Using model:", currentModel);
 
-## Sentiment Analysis with JSON Output
+// Use fallback system for robust prompting
+const robustPrompt = fallback.createRobustPrompt(
+  session.prompt.bind(session),
+  {
+    maxRetries: 3,
+    retryDelay: 1000
+  }
+);
 
-This example shows how to get structured JSON output from the model with sentiment analysis.
-
-```javascript
-// Setup system message for JSON output
-const systemMessage = {
-  role: "system",
-  content: "You are an AI trained to analyze text sentiment and extract key points. Always respond with a JSON object containing 'sentiment' (string), 'confidence' (number between 0-1), and 'key_points' (array of strings)."
-};
-
-// Create user message with text to analyze
-const userMessage = {
-  role: "user",
-  content: `Analyze this text: "${textToAnalyze}"`
-};
-
-// Get JSON response with lower temperature for consistency
-const result = await model.prompt([systemMessage, userMessage], {
-  temperature: 0.1
-});
-
-// Parse JSON from response
-const jsonMatch = result.match(/\{[\s\S]*\}/);
-if (jsonMatch) {
-  const jsonResponse = JSON.parse(jsonMatch[0]);
-  // jsonResponse will have:
-  // {
-  //   sentiment: "positive" | "negative" | "neutral",
-  //   confidence: 0.85,
-  //   key_points: ["point 1", "point 2", ...]
-  // }
+try {
+  const result = await robustPrompt("What is the meaning of life?");
+  console.log(result);
+} catch (error) {
+  console.error("All retries failed:", error);
 }
 ```
 
 ## Error Handling and Progress Tracking
 
-Example of proper error handling and progress tracking in WindowChain applications.
-
 ```javascript
-// Initialize model with progress tracking
-const model = await createModel({
-  temperature: 0.7,
-  onDownloadProgress: (e) => {
-    const percent = Math.round((e.loaded / e.total) * 100);
-    console.log(`Downloaded ${percent}%`);
-  },
+import { Session, TemplateSystem } from "window-chain";
+
+// Initialize with progress tracking
+const session = await Session.create({
+  onDownloadProgress: (event) => {
+    const progress = (event.loaded / event.total) * 100;
+    console.log(`Download progress: ${progress.toFixed(1)}%`);
+  }
 });
 
-// Error handling in prompts
 try {
-  const result = await model.prompt("Your prompt here");
-  console.log(result);
+  // Monitor token usage
+  console.log(`Starting tokens: ${session.tokensLeft}`);
+  
+  const response = await session.prompt("Generate a long response...");
+  
+  console.log(`Tokens used: ${session.tokensSoFar}`);
+  console.log(`Tokens remaining: ${session.tokensLeft}`);
 } catch (error) {
-  if (error.name === "AbortError") {
-    console.log("Operation was cancelled");
+  if (error.message.includes("token limit")) {
+    console.error("Exceeded token limit");
   } else {
-    console.error("Error:", error.message);
+    console.error("Unexpected error:", error);
   }
+} finally {
+  // Clean up
+  await session.destroy();
 }
 ```
 
