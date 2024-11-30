@@ -20,37 +20,37 @@ npm install window-chain
 ## Quick Start
 
 ```javascript
-import { Session, TemplateSystem, DistributedCache, CompositionBuilder } from "window-chain";
-
-// Initialize session
-const session = await Session.create({ temperature: 0.7, topK: 4 });
+import { createWindowChain, TemplateSystem, CompositionBuilder } from 'window-chain';
 
 // Initialize components
-const templates = new TemplateSystem();
-const cache = new DistributedCache({ compression: true });
-const composer = new CompositionBuilder(session);
+const chain = await createWindowChain();
+const templates = new TemplateSystem(chain.session);  // Pass session to TemplateSystem
+const composer = new CompositionBuilder(chain.session);  // Pass session to CompositionBuilder
 
-// Create template
-const translator = templates.retister(
-  [
-    ["system", "You are a helpful translator."],
-    ["user", 'Translate "{text}" to {language}.']
-  ],
-  ["text", "language"]
+// Register template
+templates.register('translator',
+  'You are a professional translator.\nTranslate "{text}" to {language}.',
+  { text: '', language: '' }
 );
 
 // Create enhanced prompt function with caching
-const translate = composer
-  .withCache(cache)
-  .build(async (messages) => await session.prompt(messages));
-
-// Use the template
-const result = await translate(
-  translator({
-    text: "Hello, world!",
-    language: "Spanish"
+const enhancedPrompt = composer
+  .pipe(async (input) => {
+    // Apply template and get processed content
+    const content = await templates.apply('translator', input);
+    // Send to model using chain.session.prompt
+    const result = await chain.session.prompt(content);
+    return result.trim();
   })
-);
+  .build();
+
+// Use the enhanced prompt
+const translation = await enhancedPrompt({
+  text: 'Hello world',
+  language: 'Spanish'
+});
+
+console.log(translation); // Hola mundo
 ```
 
 ## Core Components
@@ -60,25 +60,27 @@ const result = await translate(
 The `Session` class manages interactions with Window.ai:
 
 ```javascript
-import { Session } from "window-chain";
+import { createWindowChain } from 'window-chain';
 
-// Create a new session
-const session = await Session.create({
-  temperature: 0.7,
-  onDownloadProgress: (e) => console.log(`Downloaded: ${e.loaded}/${e.total}`)
-});
+// Create a new chain
+const chain = await createWindowChain();
 
 // Basic prompt
-const response = await session.prompt("Hello!");
+const response = await chain.session.prompt("Hello!");
 
-// Stream responses
-for await (const chunk of await session.streamPrompt("Tell me a story")) {
-  console.log(chunk.content);
+// Stream response
+const stream = await chain.session.promptStreaming("Tell me a story");
+const reader = stream.getReader();
+
+try {
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    console.log(value);
+  }
+} finally {
+  reader.releaseLock();
 }
-
-// Check token usage
-console.log(`Tokens used: ${session.tokensSoFar}`);
-console.log(`Tokens remaining: ${session.tokensLeft}`);
 ```
 
 ### Template System
@@ -86,87 +88,102 @@ console.log(`Tokens remaining: ${session.tokensLeft}`);
 Create and manage message templates with validation:
 
 ```javascript
-import { TemplateSystem, TemplateValidator } from "window-chain";
+import { createWindowChain } from 'window-chain';
 
-// Create template system
-const templateSystem = new TemplateSystem();
+// Initialize components
+const chain = await createWindowChain();
+const templates = new TemplateSystem(chain.session);
 
-// Create validator for template variables
-const validator = new TemplateValidator({
-  name: "string",
-  age: "number"
-});
-
-// Create a template with validation
-const template = templateSystem.create(
-  [
-    ["system", "You are a helpful assistant."],
-    ["user", "Tell me about {name} who is {age} years old"]
-  ],
-  ["name", "age"]
+// Register a template
+templates.register('assistant', 
+  'You are a helpful assistant.\n{query}',
+  { query: '' }
 );
 
 // Use the template
-const messages = template({
-  name: "Alice",
-  age: 25
+const message = await templates.apply('assistant', {
+  query: 'Tell me about Alice who is 25 years old'
 });
+
+// Send to model
+const response = await chain.session.prompt(message);
 ```
 
 ### Template Inheritance
 
-Create specialized templates that build upon base templates:
+Templates can inherit from other templates:
 
 ```javascript
-const baseTemplate = [
-  ["system", "You are a {role}."],
-  ["user", "{query}"]
-];
+import { createWindowChain } from 'window-chain';
 
-// Create specialized template
-const translatorTemplate = templateSystem.inherit(
-  baseTemplate,
-  {
-    role: "professional translator",
-    query: 'Translate "{text}" to {language}.'
-  }
+// Initialize components
+const chain = await createWindowChain();
+const templates = new TemplateSystem(chain.session);
+
+// Register base template
+templates.register('base', 
+  'You are a {role}.\n{query}',
+  { role: '', query: '' }
 );
+
+// Register specialized template that inherits from base
+templates.inherit('translator', 'base', {
+  role: 'professional translator',
+  query: 'Translate "{text}" to {language}.'
+});
+
+// Use the inherited template
+const message = await templates.apply('translator', {
+  text: 'Hello world',
+  language: 'Spanish'
+});
+
+// Send to model
+const translation = await chain.session.prompt(message);
+console.log(translation);
 ```
 
-### Distributed Cache
+### Distributed Caching
 
-Efficient caching with compression:
+Efficient caching with composition:
+
 
 ```javascript
-import { DistributedCache, Session } from "window-chain";
+import { createWindowChain, CompositionBuilder } from 'window-chain';
 
-const cache = new DistributedCache();
-const session = new Session();
+const chain = await createWindowChain();
+const composer = new CompositionBuilder(chain.session);
 
-const response = await cache.withCache(session.prompt.bind(session))(
-  "What is 2+2?"
-);
+const cachedPrompt = composer
+  .pipe(async (messages) => {
+    const result = await chain.session.prompt(messages);
+    return result.trim();
+  })
+  .build();
+
+const response = await cachedPrompt("What is 2+2?");
+console.log(response);
 ```
+
+> [!ERROR]
+> Uncaught NotSupportedError: The model attempted to output text in an untested language, and was prevented from doing so.
 
 ### Composition
 
 Build complex chains of functionality:
 
 ```javascript
-import {
-  CompositionBuilder,
-  Session,
-  PerformanceAnalytics,
-} from "window-chain";
+import { createWindowChain, CompositionBuilder } from 'window-chain';
 
-const session = new Session();
-const analytics = new PerformanceAnalytics();
-const composition = new CompositionBuilder();
+const chain = await createWindowChain();
+const composer = new CompositionBuilder(chain.session);
 
-const enhancedPrompt = composition
-  .withAnalytics(analytics)
-  .withRetry()
-  .build(session.prompt.bind(session));
+const enhancedPrompt = composer
+  .pipe(async (input) => {
+    const result = await chain.session.prompt(input);
+    return result.trim();
+  })
+  .build();
 
 const result = await enhancedPrompt("Hello!");
 ```

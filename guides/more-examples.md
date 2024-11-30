@@ -5,19 +5,16 @@ This document provides detailed examples of using WindowChain's various features
 ## Translation with Templates and Streaming
 
 ```javascript
-import { Session, TemplateSystem } from "window-chain";
+import { createSession, TemplateSystem } from "window-chain";
 
 // Initialize components
-const session = await Session.create({ temperature: 0.7 });
+const session = await createSession({ temperature: 0.7 });
 const templates = new TemplateSystem();
 
 // Create translation template
-const translateTemplate = templates.create(
-  [
-    ["system", "You are a professional translator."],
-    ["user", "Translate '{text}' to {language}."]
-  ],
-  ["text", "language"]
+const translateTemplate = templates.register('translator',
+  'You are a professional translator.\nTranslate "{text}" to {language}.',
+  { text: '', language: '' }
 );
 
 // Basic translation
@@ -29,7 +26,7 @@ const result = await session.prompt(
 );
 
 // Streaming translation
-const stream = await session.streamPrompt(
+const stream = await session.promptStreaming(
   translateTemplate({
     text: "Hello world",
     language: "Spanish"
@@ -44,27 +41,30 @@ for await (const chunk of stream) {
 ## Advanced Composition with Caching and Analytics
 
 ```javascript
-import { Session, TemplateSystem, DistributedCache, CompositionBuilder, PerformanceAnalytics } from "window-chain";
+import { createSession, TemplateSystem, DistributedCache, CompositionBuilder, PerformanceAnalytics } from "window-chain";
 
 // Initialize components
-const session = await Session.create();
+const session = await createSession();
 const templates = new TemplateSystem();
 const cache = new DistributedCache({ compression: true });
 const analytics = new PerformanceAnalytics();
 
 // Create composition chain
 const composer = new CompositionBuilder(session)
-  .withCache(cache)
-  .withAnalytics(analytics)
-  .build(async (messages) => await session.prompt(messages));
+  .pipe(async (messages) => {
+    const result = await session.prompt(messages);
+    return JSON.parse(result);
+  })
+  .parallel([
+    async (data) => ({ sentiment: data.sentiment }),
+    async (data) => ({ confidence: data.confidence })
+  ])
+  .build();
 
 // Create template
-const analyzeTemplate = templates.create(
-  [
-    ["system", "You are an AI trained to analyze text sentiment and extract key points. Respond with a JSON object containing 'sentiment' (string), 'confidence' (number between 0-1), and 'key_points' (array of strings)."],
-    ["user", "Analyze this text: {text}"]
-  ],
-  ["text"]
+const analyzeTemplate = templates.register('analyzer',
+  'You are an AI trained to analyze text sentiment and extract key points. Respond with a JSON object containing "sentiment" (string), "confidence" (number between 0-1), and "key_points" (array of strings).\nAnalyze this text: {text}',
+  { text: '' }
 );
 
 // Use the composed function
@@ -82,15 +82,20 @@ console.log(`Cache hit rate: ${analytics.getCacheHitRate()}%`);
 ## Model Capabilities and Fallback Handling
 
 ```javascript
-import { Session, Capabilities, FallbackSystem } from "window-chain";
+import { createSession, Capabilities, FallbackSystem } from "window-chain";
 
 // Initialize session and components
-const session = await Session.create();
-const capabilities = new Capabilities(session);
+const session = await createSession();
+const capabilities = await Capabilities.get();
 const fallback = new FallbackSystem();
 
-// Initialize capabilities
-await capabilities.initialize();
+// Check if model is ready
+if (capabilities.isReady()) {
+  console.log("Model is ready to use");
+  console.log("Default temperature:", capabilities.defaultTemperature);
+} else if (capabilities.needsDownload()) {
+  console.log("Model needs to be downloaded first");
+}
 
 // Get available models
 const models = await capabilities.getAvailableModels();
@@ -128,10 +133,10 @@ try {
 ## Error Handling and Progress Tracking
 
 ```javascript
-import { Session, TemplateSystem } from "window-chain";
+import { createSession, TemplateSystem } from "window-chain";
 
 // Initialize with progress tracking
-const session = await Session.create({
+const session = await createSession({
   onDownloadProgress: (event) => {
     const progress = (event.loaded / event.total) * 100;
     console.log(`Download progress: ${progress.toFixed(1)}%`);

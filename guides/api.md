@@ -1,46 +1,64 @@
 # Window Chain API Reference
 
+## Core Functions
+
+### createWindowChain
+
+Create a new Window Chain instance with all features enabled.
+
+```typescript
+function createWindowChain(options?: {
+  session?: {
+    temperature?: number;
+  };
+}): Promise<WindowChain>;
+```
+
 ## Core Classes
 
-### Session
+### WindowChain
 
 The main class for interacting with Window.ai's language models.
 
 ```typescript
-class Session {
-  static async create(options: {
-    temperature?: number;
-    onDownloadProgress?: (event: ProgressEvent) => void;
-  }): Promise<Session>;
+class WindowChain {
+  constructor(options?: Object);
 
-  // Properties
-  readonly tokensSoFar: number;
-  readonly maxTokens: number;
-  readonly tokensLeft: number;
-
-  async prompt(input: string | Message[]): Promise<string>;
-  async streamPrompt(input: string | Message[]): AsyncIterator<{ content: string }>;
-  async initialize(): Promise<void>;
-  async destroy(): Promise<void>;
+  prompt(input: string | Message[]): Promise<string>;
+  promptStreaming(input: string | Message[]): AsyncIterator<string>;
 }
 ```
 
 ### Capabilities
 
-Manages model capabilities and configurations.
+Enhanced capabilities wrapper for Window.ai.
 
 ```typescript
 class Capabilities {
-  constructor(session: Session);
+  constructor(rawCapabilities: Object);
 
-  async initialize(): Promise<void>;
-  async getAvailableModels(): Promise<string[]>;
-  async getCurrentModel(): Promise<string>;
-  async setModel(modelName: string): Promise<void>;
+  // Properties
+  available: string;
+  defaultTopK: number;
+  maxTopK: number;
+  defaultTemperature: number;
+
+  /**
+   * Get current Window.ai capabilities
+   */
+  static get(): Promise<Capabilities>;
+
+  /**
+   * Check if the model is ready to use
+   */
+  isReady(): boolean;
+
+  /**
+   * Check if model needs to be downloaded
+   */
+  needsDownload(): boolean;
 }
 ```
-
-## Template System
 
 ### TemplateSystem
 
@@ -48,13 +66,33 @@ Creates and manages message templates with variable substitution.
 
 ```typescript
 class TemplateSystem {
-  create(
-    template: (string | [string, string])[],
-    variables: string[]
-  ): (values: Record<string, any>) => Message[];
+  constructor(session: Session);
 
-  validate(template: any): boolean;
-  inherit(baseTemplate: string, overrides: any): Template;
+  /**
+   * Register a new template
+   */
+  register(
+    name: string,
+    content: string,
+    defaults?: Record<string, any>
+  ): (values: Record<string, any>) => string;
+
+  /**
+   * Create a new template that inherits from a parent template
+   */
+  inherit(
+    name: string,
+    parentName: string,
+    defaults?: Record<string, any>
+  ): void;
+
+  /**
+   * Apply a template with given variables
+   */
+  async apply(
+    name: string,
+    variables?: Record<string, any>
+  ): Promise<string>;
 }
 ```
 
@@ -111,19 +149,35 @@ class CacheCompression {
 
 ### CompositionBuilder
 
-Builds chains of functions with various capabilities.
+Advanced composition pattern builder for chaining operations.
 
 ```typescript
 class CompositionBuilder {
-  withCache(cache: DistributedCache): this;
-  withAnalytics(analytics: PerformanceAnalytics): this;
-  withRetry(options?: RetryOptions): this;
-  withFallback(fallback: FallbackSystem): this;
-  withValidator(validator: TemplateValidator): this;
-  
-  build<T>(
-    fn: (...args: any[]) => Promise<T>
-  ): (...args: any[]) => Promise<T>;
+  constructor(session: Session);
+
+  /**
+   * Add a processing step
+   */
+  pipe(fn: Function): CompositionBuilder;
+
+  /**
+   * Add a conditional branch
+   */
+  branch(
+    condition: Function,
+    ifTrue: Function,
+    ifFalse: Function
+  ): CompositionBuilder;
+
+  /**
+   * Add parallel processing
+   */
+  parallel(fns: Function[]): CompositionBuilder;
+
+  /**
+   * Build the composition
+   */
+  build(): Function;
 }
 ```
 
@@ -271,14 +325,14 @@ const chain = await createWindowChain({
 
 // Use features
 const template = chain.templates.create('Hello, {name}!');
-const result = await chain.session.prompt(template({ name: 'World' }));
+const result = await chain.prompt(template({ name: 'World' }));
 
 // Monitor performance
 chain.analytics.record('responseTime', 150);
 
 // Handle fallbacks
 const response = await chain.fallback.execute(async () => {
-  return await chain.session.prompt('Complex query');
+  return await chain.prompt('Complex query');
 });
 
 // Clean up

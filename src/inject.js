@@ -5,7 +5,8 @@ export default (object={}, overwrite = "silent")=>{
     return;
   }
   for (const [key, value] of Object.entries(index)) {
-    if(object[key] ){
+
+    if(object[key]){
       switch (overwrite) {
         case "warn":
           console.warn(`Overwriting ${key} in global object`);
