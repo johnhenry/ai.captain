@@ -7,20 +7,34 @@
 Templates can inherit from and extend other templates:
 
 ```javascript
-const templateSystem = new TemplateSystem();
+import { createWindowChain, TemplateSystem } from 'window-chain';
 
-// Base template
-const baseTemplate = templateSystem.create([
-  ['system', 'You are a helpful assistant specialized in {domain}.'],
-  ['human', '{query}']
-], ['domain', 'query']);
+// Initialize components
+const chain = await createWindowChain();
+const templates = new TemplateSystem(chain.session);
 
-// Extended template for translation
-const translatorTemplate = templateSystem.inherit(baseTemplate, {
-  domain: 'translation',
-  systemPrompt: 'You are a helpful translator specialized in {languages}.',
-  variables: ['languages', 'query']
+// Register base template
+templates.register('base', 
+  'You are a {role} specialized in {domain}.\n{query}',
+  { role: '', domain: '', query: '' }
+);
+
+// Register specialized template that inherits from base
+templates.inherit('translator', 'base', {
+  role: 'professional translator',
+  domain: '{languages}',
+  query: 'Translate "{text}" to {targetLang}"'
 });
+
+// Use the inherited template
+const message = await templates.apply('translator', {
+  languages: 'multiple languages',
+  text: 'Hello world',
+  targetLang: 'Spanish'
+});
+
+// Send to model
+const translation = await chain.session.prompt(message);
 ```
 
 ### Custom Validation Rules
@@ -28,22 +42,31 @@ const translatorTemplate = templateSystem.inherit(baseTemplate, {
 Create custom validation rules for template inputs:
 
 ```javascript
-const validator = new TemplateValidator({
-  age: 'number',
-  email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-  tags: ['string']
-});
+import { createWindowChain, TemplateSystem } from 'window-chain';
 
-const template = templateSystem.create([
-  ['system', 'Process user data'],
-  ['human', 'User age: {age}, email: {email}, tags: {tags}']
-], ['age', 'email', 'tags']);
+const chain = await createWindowChain();
+const templates = new TemplateSystem(chain.session);
 
-// Validate before use
-if (validator.validate(inputData)) {
-  const result = await session.prompt(template(inputData));
-} else {
-  console.error(validator.getErrors());
+// Register template with validation
+templates.register('userProfile', 
+  'Process user data:\nAge: {age}\nEmail: {email}\nTags: {tags}',
+  {
+    age: (value) => typeof value === 'number' && value > 0,
+    email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+    tags: (value) => Array.isArray(value) && value.every(tag => typeof tag === 'string')
+  }
+);
+
+// Use template with validation
+try {
+  const message = await templates.apply('userProfile', {
+    age: 25,
+    email: 'user@example.com',
+    tags: ['developer', 'javascript']
+  });
+  const response = await chain.session.prompt(message);
+} catch (error) {
+  console.error('Validation failed:', error.message);
 }
 ```
 
@@ -75,17 +98,24 @@ const redisCache = new DistributedCache({
 Optimize cache storage with compression:
 
 ```javascript
-// Automatic compression for large values
-const cache = new DistributedCache({
-  compression: {
-    threshold: 1024, // Compress values larger than 1KB
-    algorithm: 'lz4' // Use LZ4 compression
-  }
-});
+import { createWindowChain, CompositionBuilder } from 'window-chain';
 
-// Manual compression
-const compressed = await CacheCompression.compress(largeData);
-await cache.set('key', compressed, { compressed: true });
+const chain = await createWindowChain();
+const composer = new CompositionBuilder(chain.session);
+
+// Create enhanced prompt with compression
+const compressedPrompt = composer
+  .pipe(async (input) => {
+    // Compress large inputs if needed
+    const processedInput = input.length > 1024 ? 
+      await compressInput(input) : input;
+    
+    const result = await chain.session.prompt(processedInput);
+    return result.trim();
+  })
+  .build();
+
+const response = await compressedPrompt("What is the meaning of life?");
 ```
 
 ## Advanced Composition
@@ -95,25 +125,37 @@ await cache.set('key', compressed, { compressed: true });
 Create reusable composition patterns:
 
 ```javascript
-class TranslationChain extends CompositionChains {
-  constructor(session, options = {}) {
-    super(session);
-    this.options = options;
-  }
+import { createWindowChain, CompositionBuilder } from 'window-chain';
 
-  async translate(text, fromLang, toLang) {
-    return this.build()
-      .withCache(this.cache)
-      .withRetry({ maxAttempts: 3 })
-      .withAnalytics(this.analytics)
-      .execute(async () => {
-        const result = await this.session.prompt(
-          this.createPrompt(text, fromLang, toLang)
-        );
-        return this.parseResult(result);
-      });
-  }
-}
+const chain = await createWindowChain();
+const composer = new CompositionBuilder(chain.session);
+
+// Create a translation chain with multiple processing steps
+const translationChain = composer
+  .pipe(async (input) => {
+    // Step 1: Validate input
+    if (!input.text || !input.targetLang) {
+      throw new Error('Missing required fields');
+    }
+    return input;
+  })
+  .pipe(async (input) => {
+    // Step 2: Apply translation template
+    const message = await templates.apply('translator', input);
+    return message;
+  })
+  .pipe(async (message) => {
+    // Step 3: Get translation from model
+    const result = await chain.session.prompt(message);
+    return result.trim();
+  })
+  .build();
+
+// Use the translation chain
+const result = await translationChain({
+  text: 'Hello world',
+  targetLang: 'Spanish'
+});
 ```
 
 ### Error Recovery
@@ -121,22 +163,34 @@ class TranslationChain extends CompositionChains {
 Implement sophisticated error recovery:
 
 ```javascript
-const robustChain = new CompositionBuilder()
-  .withFallback(new FallbackSystem(session, {
-    handlers: {
-      timeout: async (error, attempt) => {
-        if (attempt < 3) return 'retry';
-        return 'abort';
-      },
-      validation: async (error) => {
-        return 'fix-and-retry';
+import { createWindowChain, CompositionBuilder } from 'window-chain';
+
+const chain = await createWindowChain();
+const composer = new CompositionBuilder(chain.session);
+
+// Create prompt with error handling
+const robustPrompt = composer
+  .pipe(async (input) => {
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const result = await chain.session.prompt(input);
+        return result.trim();
+      } catch (error) {
+        attempts++;
+        if (attempts === maxAttempts) {
+          throw new Error(`Failed after ${maxAttempts} attempts: ${error.message}`);
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
       }
     }
-  }))
-  .withCache(cache)
-  .build(async (input) => {
-    // Complex operation
-  });
+  })
+  .build();
+
+const result = await robustPrompt("Hello!");
 ```
 
 ## Performance Monitoring
@@ -186,7 +240,7 @@ const batchProcessor = new CompositionBuilder()
   .withAnalytics(analytics)
   .build(async (inputs) => {
     const results = await Promise.all(
-      inputs.map(input => session.prompt(input))
+      inputs.map(input => chain.session.prompt(input))
     );
     return results;
   });
@@ -199,7 +253,7 @@ const streamProcessor = new CompositionBuilder()
   })
   .build(async function* (stream) {
     for await (const chunk of stream) {
-      yield await session.prompt(chunk);
+      yield await chain.session.prompt(chunk);
     }
   });
 ```
@@ -211,7 +265,7 @@ const streamProcessor = new CompositionBuilder()
 Implement thorough input validation:
 
 ```javascript
-const secureTemplate = templateSystem.create([
+const secureTemplate = templates.create([
   ['system', 'Process user input'],
   ['human', '{input}']
 ], ['input'])
@@ -235,7 +289,7 @@ Implement secure error handling:
 
 ```javascript
 try {
-  const result = await session.prompt(input);
+  const result = await chain.session.prompt(input);
 } catch (error) {
   if (error instanceof ValidationError) {
     // Log validation error, don't expose details
