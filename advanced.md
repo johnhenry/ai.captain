@@ -251,47 +251,172 @@ try {
 
 ## Testing
 
-### Unit Testing
+### Setting Up Tests
 
-Test individual components:
+Create a mock session for testing Window Chain components:
 
 ```javascript
 import { test } from 'node:test';
 import assert from 'node:assert';
+import {
+  Session,
+  TemplateSystem,
+  DistributedCache,
+  CompositionBuilder
+} from 'window-chain';
 
+class MockSession extends Session {
+  constructor(responses = {}) {
+    super();
+    this.responses = responses;
+  }
+
+  async prompt(input) {
+    const key = typeof input === 'string' ? input : JSON.stringify(input);
+    return this.responses[key] || 'Mock response';
+  }
+
+  async streamPrompt(input) {
+    const response = await this.prompt(input);
+    return {
+      async *[Symbol.asyncIterator]() {
+        yield { content: response };
+      }
+    };
+  }
+}
+```
+
+### Testing Templates
+
+Test template creation and validation:
+
+```javascript
 test('TemplateSystem', async (t) => {
-  const templateSystem = new TemplateSystem();
-  
-  await t.test('template validation', () => {
-    const template = templateSystem.create([
-      ['system', 'Test {value}']
-    ], ['value']);
-    
-    assert.doesNotThrow(() => template({ value: 'valid' }));
-    assert.throws(() => template({}), ValidationError);
+  const session = new MockSession();
+  const templates = new TemplateSystem(session);
+
+  // Register a template
+  templates.register('translator',
+    'You are a professional translator.\nTranslate "{text}" to {language}.',
+    { text: '', language: '' }
+  );
+
+  await t.test('template application', async () => {
+    const message = await templates.apply('translator', {
+      text: "Hello world",
+      language: "Spanish"
+    });
+    assert.match(message, /You are a professional translator/);
+    assert.match(message, /Translate "Hello world" to Spanish/);
+  });
+
+  await t.test('template validation', async () => {
+    await assert.rejects(
+      () => templates.apply('translator', { text: 'Hello' }),
+      { message: /Missing required parameter: language/ }
+    );
+  });
+});
+```
+
+### Testing Composition
+
+Test composition chains with error handling:
+
+```javascript
+test('CompositionBuilder', async (t) => {
+  const session = new MockSession({
+    'Hello': 'Hi there!',
+    'Error test': new Error('Test error')
+  });
+
+  const composer = new CompositionBuilder(session);
+
+  await t.test('basic composition', async () => {
+    const enhanced = composer
+      .pipe(async (input) => {
+        const result = await session.prompt(input);
+        return result.trim();
+      })
+      .build();
+
+    const result = await enhanced('Hello');
+    assert.equal(result, 'Hi there!');
+  });
+
+  await t.test('error handling', async () => {
+    const withRetry = composer
+      .pipe(async (input) => {
+        const result = await session.prompt(input);
+        if (result instanceof Error) throw result;
+        return result;
+      })
+      .build();
+
+    await assert.rejects(
+      () => withRetry('Error test'),
+      { message: 'Test error' }
+    );
   });
 });
 ```
 
 ### Integration Testing
 
-Test component integration:
+Test complete workflows:
 
 ```javascript
-test('Composition Chain', async (t) => {
-  const session = new Session();
-  const cache = new DistributedCache();
-  const analytics = new PerformanceAnalytics();
-  
-  const chain = new CompositionBuilder()
-    .withCache(cache)
-    .withAnalytics(analytics)
-    .build(session.prompt.bind(session));
-  
-  const result = await chain('Test prompt');
-  assert.ok(result);
-  
-  const metrics = analytics.getMetrics('responseTime');
-  assert.ok(metrics.count > 0);
+test('Translation Workflow', async (t) => {
+  // Mock responses
+  const session = new MockSession({
+    'Translate "Hello" to Spanish': '¡Hola!',
+    'Translate "World" to Spanish': 'Mundo'
+  });
+
+  // Setup components
+  const templates = new TemplateSystem(session);
+  const cache = new DistributedCache({ namespace: 'test' });
+  const composer = new CompositionBuilder(session);
+
+  // Register translation template
+  templates.register('translator',
+    'You are a professional translator.\nTranslate "{text}" to {language}.',
+    { text: '', language: '' }
+  );
+
+  // Create translation function
+  const translate = composer
+    .pipe(async (input) => {
+      const message = await templates.apply('translator', input);
+      const result = await session.prompt(message);
+      return result.trim();
+    })
+    .build();
+
+  // Test workflow
+  await t.test('translate text', async () => {
+    const hello = await translate({
+      text: 'Hello',
+      language: 'Spanish'
+    });
+    assert.equal(hello, '¡Hola!');
+
+    const world = await translate({
+      text: 'World',
+      language: 'Spanish'
+    });
+    assert.equal(world, 'Mundo');
+  });
 });
 ```
+
+### Testing Best Practices
+
+1. Use mock sessions to avoid API calls during tests
+2. Test error cases and edge conditions
+3. Validate template inputs and outputs
+4. Test complete workflows end-to-end
+5. Use the cache during tests to verify caching behavior
+6. Test streaming responses
+7. Verify error handling and recovery mechanisms
