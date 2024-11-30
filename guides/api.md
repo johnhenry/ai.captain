@@ -21,42 +21,58 @@ function createWindowChain(options?: {
 The main class for interacting with Window.ai's language models.
 
 ```typescript
-class WindowChain {
-  constructor(options?: Object);
-
-  prompt(input: string | Message[]): Promise<string>;
-  promptStreaming(input: string | Message[]): AsyncIterator<string>;
+interface WindowChain {
+  session: Session;
+  capabilities: Capabilities;
+  templates: TemplateSystem;
+  composer: CompositionBuilder;
+  // ... other components
 }
 ```
 
-### Capabilities
+### Session
 
-Enhanced capabilities wrapper for Window.ai.
+Manages interactions with Window.ai's language models.
 
 ```typescript
-class Capabilities {
-  constructor(rawCapabilities: Object);
-
-  // Properties
-  available: string;
-  defaultTopK: number;
-  maxTopK: number;
-  defaultTemperature: number;
+class Session {
+  constructor(session: Object);
 
   /**
-   * Get current Window.ai capabilities
+   * Send a prompt to the model
+   * @throws {Error} When model output is in an untested language
+   * @throws {Error} For other model-related errors
    */
-  static get(): Promise<Capabilities>;
+  prompt(
+    text: string,
+    options?: { temperature?: number }
+  ): Promise<string>;
 
   /**
-   * Check if the model is ready to use
+   * Send a prompt and receive a streaming response
+   * @returns A ReadableStream that must be consumed using a reader
+   * @example
+   * const stream = await session.promptStreaming("Tell me a story");
+   * const reader = stream.getReader();
+   * try {
+   *   while (true) {
+   *     const { done, value } = await reader.read();
+   *     if (done) break;
+   *     console.log(value);
+   *   }
+   * } finally {
+   *   reader.releaseLock();
+   * }
    */
-  isReady(): boolean;
+  promptStreaming(
+    text: string,
+    options?: { temperature?: number }
+  ): Promise<ReadableStream>;
 
   /**
-   * Check if model needs to be downloaded
+   * Clean up resources
    */
-  needsDownload(): boolean;
+  destroy(): Promise<void>;
 }
 ```
 
@@ -75,10 +91,11 @@ class TemplateSystem {
     name: string,
     content: string,
     defaults?: Record<string, any>
-  ): (values: Record<string, any>) => string;
+  ): void;
 
   /**
    * Create a new template that inherits from a parent template
+   * @throws {Error} When parent template is not found
    */
   inherit(
     name: string,
@@ -88,64 +105,15 @@ class TemplateSystem {
 
   /**
    * Apply a template with given variables
+   * @throws {Error} When template is not found
+   * @throws {Error} When required variables are missing
    */
-  async apply(
+  apply(
     name: string,
     variables?: Record<string, any>
   ): Promise<string>;
 }
 ```
-
-### TemplateValidator
-
-Validates template inputs against defined schemas.
-
-```typescript
-class TemplateValidator {
-  constructor(schema: {
-    [key: string]: 'string' | 'number' | 'boolean' | string[];
-  });
-
-  validate(input: any): boolean;
-  getErrors(): string[];
-}
-```
-
-## Caching System
-
-### DistributedCache
-
-Provides distributed caching capabilities with compression.
-
-```typescript
-class DistributedCache {
-  constructor(options?: {
-    namespace?: string;
-    ttl?: number;
-    compression?: boolean;
-  });
-
-  async get(key: string): Promise<any>;
-  async set(key: string, value: any): Promise<void>;
-  async delete(key: string): Promise<void>;
-  async clear(): Promise<void>;
-  
-  withCache<T>(fn: (...args: any[]) => Promise<T>): (...args: any[]) => Promise<T>;
-}
-```
-
-### CacheCompression
-
-Handles data compression for the cache system.
-
-```typescript
-class CacheCompression {
-  static async compress(data: any): Promise<Uint8Array>;
-  static async decompress(data: Uint8Array): Promise<any>;
-}
-```
-
-## Composition System
 
 ### CompositionBuilder
 
@@ -157,6 +125,13 @@ class CompositionBuilder {
 
   /**
    * Add a processing step
+   * @example
+   * composer
+   *   .pipe(async (input) => {
+   *     const result = await session.prompt(input);
+   *     return result.trim();
+   *   })
+   *   .build();
    */
   pipe(fn: Function): CompositionBuilder;
 
@@ -176,127 +151,89 @@ class CompositionBuilder {
 
   /**
    * Build the composition
+   * @returns An async function that executes the composition
    */
-  build(): Function;
+  build(): (input: any) => Promise<any>;
 }
-```
-
-### CompositionChains
-
-Pre-built composition patterns for common use cases.
-
-```typescript
-class CompositionChains {
-  static createTranslationChain(
-    session: Session,
-    options?: TranslationOptions
-  ): (text: string, language: string) => Promise<string>;
-
-  static createStreamingChain(
-    session: Session,
-    options?: StreamingOptions
-  ): (prompt: string) => AsyncIterator<{ content: string }>;
-}
-```
-
-## Monitoring System
-
-### PerformanceAnalytics
-
-Tracks and analyzes performance metrics.
-
-```typescript
-class PerformanceAnalytics {
-  recordMetric(name: string, value: number): void;
-  getMetrics(name: string): MetricsSummary;
-  clearMetrics(): void;
-  
-  withTracking<T>(
-    name: string,
-    fn: (...args: any[]) => Promise<T>
-  ): (...args: any[]) => Promise<T>;
-}
-```
-
-### FallbackSystem
-
-Manages fallback strategies and retries.
-
-```typescript
-class FallbackSystem {
-  constructor(session: Session, options?: FallbackOptions);
-
-  addFallback(name: string, handler: FallbackHandler): void;
-  removeFallback(name: string): void;
-  
-  async execute<T>(
-    fn: (...args: any[]) => Promise<T>
-  ): Promise<T>;
-}
-```
-
-## Types
-
-### Common Types
-
-```typescript
-interface Message {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-interface Template {
-  messages: (string | [string, string])[];
-  variables: string[];
-}
-
-interface MetricsSummary {
-  count: number;
-  mean: number;
-  min: number;
-  max: number;
-  p95: number;
-}
-
-interface RetryOptions {
-  maxAttempts?: number;
-  backoff?: 'linear' | 'exponential';
-  initialDelay?: number;
-}
-
-interface FallbackOptions {
-  timeout?: number;
-  maxAttempts?: number;
-}
-
-type FallbackHandler = (error: Error, attempt: number) => Promise<any>;
 ```
 
 ## Error Handling
 
-The library uses custom error classes for specific error cases:
+The library can throw several types of errors:
 
 ```typescript
-class WindowChainError extends Error {}
-class ValidationError extends WindowChainError {}
-class CacheError extends WindowChainError {}
-class ModelError extends WindowChainError {}
-class TimeoutError extends WindowChainError {}
+// Model output errors
+Error: "The model attempted to output text in an untested language"
+
+// Template errors
+Error: "Template '[name]' not found"
+Error: "Missing required parameter: [param]"
+Error: "Parent template '[name]' not found"
+
+// Session errors
+Error: "Window.ai API not available"
+
+// JSON parsing errors
+SyntaxError: "Unexpected token in JSON"
 ```
 
-## Events
+## Best Practices
 
-The library emits events for various operations:
-
+1. Always handle potential errors from model interactions:
 ```typescript
-interface Events {
-  'model.loaded': (modelName: string) => void;
-  'prompt.start': (input: string | Message[]) => void;
-  'prompt.end': (result: string) => void;
-  'error': (error: WindowChainError) => void;
-  'cache.hit': (key: string) => void;
-  'cache.miss': (key: string) => void;
-  'fallback.triggered': (error: Error, attempt: number) => void;
+try {
+  const response = await chain.session.prompt(input);
+  console.log(response);
+} catch (error) {
+  if (error.message?.includes('untested language')) {
+    console.error("Language not supported:", error.message);
+  } else {
+    console.error("Model error:", error.message);
+  }
+}
+```
+
+2. Handle JSON parsing errors:
+```typescript
+try {
+  const result = await chain.session.prompt(jsonTemplate);
+  return JSON.parse(result.trim());
+} catch (error) {
+  if (error instanceof SyntaxError) {
+    console.error("Failed to parse JSON:", error.message);
+    return null;
+  }
+  throw error;  // Re-throw other errors
+}
+```
+
+3. Properly clean up streaming resources:
+```typescript
+const stream = await chain.session.promptStreaming(input);
+const reader = stream.getReader();
+try {
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    process(value);
+  }
+} finally {
+  reader.releaseLock();
+}
+```
+
+4. Handle template errors:
+```typescript
+try {
+  const message = await templates.apply('myTemplate', variables);
+} catch (error) {
+  if (error.message?.includes('not found')) {
+    console.error("Template error:", error.message);
+  } else if (error.message?.includes('required parameter')) {
+    console.error("Missing parameter:", error.message);
+  } else {
+    throw error;
+  }
 }
 ```
 
@@ -325,14 +262,14 @@ const chain = await createWindowChain({
 
 // Use features
 const template = chain.templates.create('Hello, {name}!');
-const result = await chain.prompt(template({ name: 'World' }));
+const result = await chain.session.prompt(template({ name: 'World' }));
 
 // Monitor performance
 chain.analytics.record('responseTime', 150);
 
 // Handle fallbacks
 const response = await chain.fallback.execute(async () => {
-  return await chain.prompt('Complex query');
+  return await chain.session.prompt('Complex query');
 });
 
 // Clean up
