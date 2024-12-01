@@ -29,6 +29,7 @@ class MockAILanguageModelSession {
   #temperature;
   #topK;
   #signal;
+  #progressInterval;
 
   constructor(options = {}) {
     // Validate temperature if provided
@@ -67,6 +68,28 @@ class MockAILanguageModelSession {
         this.#conversationHistory.push(prompt);
         this.#tokensSoFar += countTokens(prompt.content);
       }
+    }
+
+    // Simulate download progress if monitor is provided
+    if (options.monitor) {
+      const monitor = {
+        addEventListener: (event, callback) => {
+          if (event === 'downloadprogress') {
+            // Simulate progress asynchronously
+            let loaded = 0;
+            const total = 1000000;
+            this.#progressInterval = setInterval(() => {
+              loaded += 100000;
+              callback({ loaded, total });
+              if (loaded >= total) {
+                clearInterval(this.#progressInterval);
+                this.#progressInterval = null;
+              }
+            }, 10);
+          }
+        }
+      };
+      options.monitor(monitor);
     }
   }
 
@@ -210,6 +233,10 @@ class MockAILanguageModelSession {
   }
 
   destroy() {
+    if (this.#progressInterval) {
+      clearInterval(this.#progressInterval);
+      this.#progressInterval = null;
+    }
     this.#destroyed = true;
     this.#conversationHistory = [];
   }
@@ -223,7 +250,7 @@ const mockLanguageModel = {
 
   async create(options = {}) {
     // Simulate download progress if monitor is provided
-    if (options.monitor) {
+        if (options.monitor) {
       const monitor = {
         addEventListener: (event, callback) => {
           if (event === 'downloadprogress') {
