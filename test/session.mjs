@@ -1,22 +1,9 @@
 import assert from 'node:assert';
 import test from 'node:test';
 import { Session } from '../src/index.js';
-import { ReadableStream } from './browser.mock.mjs';
 
 // Replace global window.ai with the mock implementation
-globalThis.ai = {
-  prompt: async () => "I'm a mock AI assistant",
-  promptStreaming: async () => new ReadableStream({
-    start(controller) {
-      controller.enqueue("Why don't scientists trust atoms? ");
-      controller.enqueue("Because they make up everything!");
-      controller.close();
-    }
-  }),
-  registerTemplate: () => {},
-  inheritTemplate: () => {},
-  destroy: () => {}
-};
+
 
 // Test suite for Session
 test('Session', async (t) => {
