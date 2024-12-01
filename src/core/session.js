@@ -73,7 +73,9 @@ export class Session {
   #templates;
   #fallback;
   #analytics;
-
+  get templates(){
+    return this.#templates;
+  }
   /**
    * Create a new Session instance
    * @param {Object} session window.ai session
@@ -164,13 +166,11 @@ export class Session {
       if (input.length === 0) {
         throw new Error('Template array cannot be empty');
       }
-      const [templateName, ...variables] = input;
+      const [templateName, variables] = input;
+
+
       // Convert array of variables to object with numbered keys
-      const variableObj = variables.reduce((obj, val, idx) => {
-        obj[idx] = val;
-        return obj;
-      }, {});
-      return this.#templates.apply(templateName, variableObj);
+      return this.#templates.apply(templateName, variables);
     }
     return input;
   }
@@ -414,5 +414,8 @@ export class Session {
    */
   get tokensLeft() {
     return this.#session.tokensLeft;
+  }
+  set overrideTemplates (templates){
+    this.#templates = templates;
   }
 }

@@ -6,6 +6,7 @@ import { TemplateValidator } from './validation.js';
 export class TemplateSystem {
   constructor(session) {
     this.session = session;
+    this.session.overrideTemplates = this;
     this.templates = new Map();
     this.inheritance = new Map();
     this.validator = new TemplateValidator();

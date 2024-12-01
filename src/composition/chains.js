@@ -14,6 +14,9 @@ export class CompositionChains {
   create(options = {}) {
     return new Chain(this.session, options);
   }
+  registerTemplate(name, content, options = {}) {
+    this.session.registerTemplate(name, content, options);
+  }
 }
 
 /**
