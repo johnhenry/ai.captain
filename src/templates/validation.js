@@ -104,7 +104,7 @@ export class TemplateValidator {
       minLength: `Must be at least ${params} characters long`,
       maxLength: `Must be at most ${params} characters long`,
       pattern: 'Must match the required pattern',
-      enum: `Must be one of: ${params.join(', ')}`
+      enum: `Must be one of: ${Array.isArray(params) ? params.join(', ') : params}`
     };
 
     return messages[rule] || `Failed ${rule} validation`;

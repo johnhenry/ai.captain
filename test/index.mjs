@@ -793,49 +793,49 @@ globalThis.Response = Response;
 // });
 
 
-// // Test suite for TemplateValidator
-// test('TemplateValidator', async (t) => {
-//   let validator;
+// Test suite for TemplateValidator
+test('TemplateValidator', async (t) => {
+  let validator;
 
-//   t.beforeEach(() => {
-//     validator = new TemplateValidator();
-//   });
+  t.beforeEach(() => {
+    validator = new TemplateValidator();
+  });
 
-//   await t.test('basic validation', async () => {
-//     const template = 'Hello {name}!';
-//     const params = { name: 'World' };
+  await t.test('basic validation', async () => {
+    const template = 'Hello {name}!';
+    const params = { name: 'World' };
 
-//     const result = validator.validate(template, params);
-//     assert.strictEqual(result.valid, true);
-//     assert.strictEqual(result.issues.length, 0);
-//   });
+    const result = validator.validate(template, params);
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.issues.length, 0);
+  });
 
-//   await t.test('missing parameters', async () => {
-//     const template = 'Hello {name}!';
-//     const params = {};
+  await t.test('missing parameters', async () => {
+    const template = 'Hello {name}!';
+    const params = {};
 
-//     const result = validator.validate(template, params);
-//     assert.strictEqual(result.valid, false);
-//     assert.strictEqual(result.issues.length, 1);
-//     assert.ok(result.issues[0].includes('Missing required parameters: name'));
-//   });
+    const result = validator.validate(template, params);
+    assert.strictEqual(result.valid, false);
+    assert.strictEqual(result.issues.length, 1);
+    assert.ok(result.issues[0].includes('Missing required parameters: name'));
+  });
 
-//   await t.test('extra parameters', async () => {
-//     const template = 'Hello {name}!';
-//     const params = { name: 'World', extra: 'param' };
+  await t.test('extra parameters', async () => {
+    const template = 'Hello {name}!';
+    const params = { name: 'World', extra: 'param' };
 
-//     const result = validator.validate(template, params);
-//     assert.strictEqual(result.valid, true);
-//     assert.strictEqual(result.issues.length, 0);
-//   });
+    const result = validator.validate(template, params);
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.issues.length, 0);
+  });
 
-//   await t.test('invalid template syntax', async () => {
-//     const template = 'Hello {name!';
-//     const params = { name: 'World' };
+  await t.test('invalid template syntax', async () => {
+    const template = 'Hello {name!';
+    const params = { name: 'World' };
 
-//     const result = validator.validate(template, params);
-//     assert.strictEqual(result.valid, false);
-//     assert.strictEqual(result.issues.length, 1);
-//     assert.ok(result.issues[0].includes('Invalid template syntax'));
-//   });
-// });
+    const result = validator.validate(template, params);
+    assert.strictEqual(result.valid, false);
+    assert.strictEqual(result.issues.length, 1);
+    assert.ok(result.issues[0].includes('Invalid template syntax'));
+  });
+});
