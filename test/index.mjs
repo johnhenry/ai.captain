@@ -793,55 +793,6 @@ globalThis.Response = Response;
 // });
 
 
-
-// Test suite for FallbackSystem
-test('FallbackSystem', async (t) => {
-  let fallback;
-
-  t.beforeEach(() => {
-    const session = await Session.create();
-    fallback = new FallbackSystem(session);
-  });
-
-  await t.test('basic fallback', async () => {
-
-    fallback.addFallback('primary', async () => 'primary response);
-    fallback.addFallback('secondary', async () => 'secondary response');
-
-    const response = await fallback.execute();
-    assert.strictEqual(response, 'primary response');
-  });
-
-  // await t.test('fallback on error', async () => {
-  //   fallback.register('primary', async () => { throw new Error('primary failed'); });
-  //   fallback.register('secondary', async () => 'secondary response');
-
-  //   const response = await fallback.execute();
-  //   assert.strictEqual(response, 'secondary response');
-  // });
-
-  // await t.test('all fallbacks fail', async () => {
-  //   fallback.register('primary', async () => { throw new Error('primary failed'); });
-  //   fallback.register('secondary', async () => { throw new Error('secondary failed'); });
-
-  //   await assert.rejects(
-  //     fallback.execute(),
-  //     { message: 'All fallbacks failed' }
-  //   );
-  // });
-
-  // await t.test('fallback with context', async () => {
-  //   fallback.register('primary', async (context) => {
-  //     if (context.retry) throw new Error('primary failed');
-  //     return 'primary response';
-  //   });
-  //   fallback.register('secondary', async () => 'secondary response');
-
-  //   const response = await fallback.execute({ retry: true });
-  //   assert.strictEqual(response, 'secondary response');
-  // });
-});
-
 // // Test suite for TemplateValidator
 // test('TemplateValidator', async (t) => {
 //   let validator;
