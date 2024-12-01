@@ -23,10 +23,12 @@ export class TemplateSystem {
   register(name, content, options = {}) {
     const { defaults = {}, schema = {} } = options;
     
+    const variables = this._extractVariables(content);
     this.templates.set(name, {
       content,
-      variables: this._extractVariables(content),
-      defaults
+      variables,
+      defaults,
+      parent: null
     });
 
     if (Object.keys(schema).length > 0) {
@@ -49,11 +51,15 @@ export class TemplateSystem {
       throw new Error(`Parent template "${parentName}" not found`);
     }
 
-    // Store the inheritance relationship and defaults
-    this.inheritance.set(name, parentName);
+    // Create child template with reference to parent
     this.templates.set(name, {
-      defaults,
-      variables: this._extractVariables(parentTemplate.content)
+      content: parentTemplate.content, // Use parent's content
+      variables: [...parentTemplate.variables], // Copy parent's variables
+      defaults: {
+        ...parentTemplate.defaults, // Include parent's defaults first
+        ...defaults // Then override with child's defaults
+      },
+      parent: parentName // Store reference to parent
     });
 
     // Merge parent and child schemas if they exist
@@ -75,36 +81,33 @@ export class TemplateSystem {
       throw new Error(`Template "${name}" not found`);
     }
 
-    // Get parent template if this is an inherited template
-    const parentName = this.inheritance.get(name);
-    if (parentName) {
-      const parentTemplate = this.templates.get(parentName);
-      
-      // Combine parent's content with child's defaults and provided variables
-      const allVariables = {
-        ...(parentTemplate.defaults || {}),
-        ...(template.defaults || {}),
-        ...variables
+    // Get complete chain of templates through inheritance
+    const templateChain = this._getTemplateChain(name);
+    
+    // Merge variables from all templates in the chain, starting from the root
+    const finalVars = templateChain.reduce((vars, templateName) => {
+      const currentTemplate = this.templates.get(templateName);
+      return {
+        ...vars,
+        ...currentTemplate.defaults
       };
+    }, {});
 
-      // Validate variables if schema exists
-      await this._validateVariables(name, allVariables);
+    // Override with provided variables last
+    Object.assign(finalVars, variables);
 
-      // Replace variables in parent's content
-      return this._replaceVariables(parentTemplate.content, allVariables);
+    // Get all required variables from the entire template chain
+    const allRequiredVars = new Set();
+    for (const templateName of templateChain) {
+      const currentTemplate = this.templates.get(templateName);
+      currentTemplate.variables.forEach(v => allRequiredVars.add(v));
     }
 
-    // Handle non-inherited template
-    const finalVars = {
-      ...(template.defaults || {}),
-      ...variables
-    };
-
-    // Validate all required variables are present
-    for (const varName of template.variables) {
-      if (finalVars[varName] === undefined) {
-        throw new Error(`Missing required parameter: ${varName}`);
-      }
+    // Check for missing variables
+    const missingVars = Array.from(allRequiredVars)
+      .filter(varName => finalVars[varName] === undefined);
+    if (missingVars.length > 0) {
+      throw new Error(`Missing required parameters: ${missingVars.join(', ')}`);
     }
 
     // Validate variables if schema exists
@@ -112,6 +115,26 @@ export class TemplateSystem {
 
     // Replace variables in template
     return this._replaceVariables(template.content, finalVars);
+  }
+
+  /**
+   * Get the chain of templates through inheritance
+   * @private
+   */
+  _getTemplateChain(name) {
+    const chain = [];
+    let currentName = name;
+    
+    while (currentName) {
+      if (chain.includes(currentName)) {
+        throw new Error(`Circular inheritance detected: ${chain.join(' -> ')} -> ${currentName}`);
+      }
+      chain.unshift(currentName); // Add to start of array to maintain inheritance order
+      const template = this.templates.get(currentName);
+      currentName = template.parent;
+    }
+    
+    return chain;
   }
 
   /**
@@ -151,21 +174,27 @@ export class TemplateSystem {
    * @private
    */
   async _validateVariables(name, variables) {
-    const schema = this.schemas.get(name);
-    if (!schema) return;
+    // Get all schemas in the inheritance chain
+    const templateChain = this._getTemplateChain(name);
+    const schemas = templateChain
+      .map(templateName => this.schemas.get(templateName))
+      .filter(Boolean);
 
-    const errors = [];
-    for (const [varName, varSchema] of Object.entries(schema)) {
-      if (variables[varName] !== undefined) {
-        const result = this.validator.validate(variables[varName], varSchema);
-        if (!result.valid) {
-          errors.push(`Variable "${varName}": ${result.errors.join(', ')}`);
+    // Validate against all schemas
+    for (const schema of schemas) {
+      const errors = [];
+      for (const [varName, varSchema] of Object.entries(schema)) {
+        if (variables[varName] !== undefined) {
+          const result = this.validator.validate(variables[varName], varSchema);
+          if (!result.valid) {
+            errors.push(`Variable "${varName}": ${result.errors.join(', ')}`);
+          }
         }
       }
-    }
 
-    if (errors.length > 0) {
-      throw new Error(`Template validation failed:\n${errors.join('\n')}`);
+      if (errors.length > 0) {
+        throw new Error(`Template validation failed:\n${errors.join('\n')}`);
+      }
     }
   }
 
@@ -200,10 +229,12 @@ export class TemplateSystem {
     }
 
     return {
+      content: template.content,
       variables: template.variables,
       defaults: template.defaults,
       schema: this.schemas.get(name),
-      inherits: this.inheritance.get(name)
+      parent: template.parent,
+      inheritance: this._getTemplateChain(name)
     };
   }
 }

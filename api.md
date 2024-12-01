@@ -44,8 +44,19 @@ class Session {
    * @throws {Error} For other model-related errors
    */
   prompt(
-    text: string,
-    options?: { temperature?: number }
+    text: string | Array<string>,
+    options?: {
+      temperature?: number;
+      cache?: boolean | {
+        enabled?: boolean;
+        ttl?: number;
+        compression?: {
+          algorithm?: 'lz' | 'deflate';
+          level?: 'fast' | 'default' | 'max';
+          threshold?: number;
+        }
+      }
+    }
   ): Promise<string>;
 
   /**
@@ -65,7 +76,7 @@ class Session {
    * }
    */
   promptStreaming(
-    text: string,
+    text: string | Array<string>,
     options?: { temperature?: number }
   ): Promise<ReadableStream>;
 
@@ -78,7 +89,7 @@ class Session {
 
 ### TemplateSystem
 
-Creates and manages message templates with variable substitution.
+Creates and manages message templates with variable substitution and inheritance.
 
 ```typescript
 class TemplateSystem {
@@ -86,32 +97,115 @@ class TemplateSystem {
 
   /**
    * Register a new template
+   * @param {string} name Template name
+   * @param {string} content Template content with variables in {varName} format
+   * @param {Object} options Template options
+   * @param {Object} options.defaults Default values for template variables
+   * @param {Object} options.schema Validation schema for variables
+   * @example
+   * templates.register('base', 'You are a {role}.\n{query}', {
+   *   defaults: { role: 'helpful assistant' },
+   *   schema: {
+   *     role: { type: 'string', enum: ['assistant', 'translator', 'analyst'] },
+   *     query: { type: 'string', minLength: 1 }
+   *   }
+   * });
    */
   register(
     name: string,
     content: string,
-    defaults?: Record<string, any>
+    options?: {
+      defaults?: Record<string, any>;
+      schema?: Record<string, Object>;
+    }
   ): void;
 
   /**
    * Create a new template that inherits from a parent template
+   * @param {string} name New template name
+   * @param {string} parentName Parent template name
+   * @param {Object} options Template options
+   * @param {Object} options.defaults Override or extend parent's default values
+   * @param {Object} options.schema Additional validation rules
    * @throws {Error} When parent template is not found
+   * @example
+   * // Inherit from base template and override defaults
+   * templates.inherit('translator', 'base', {
+   *   defaults: { role: 'professional translator' },
+   *   schema: {
+   *     language: { type: 'string', enum: ['Spanish', 'French', 'German'] }
+   *   }
+   * });
    */
   inherit(
     name: string,
     parentName: string,
-    defaults?: Record<string, any>
+    options?: {
+      defaults?: Record<string, any>;
+      schema?: Record<string, Object>;
+    }
   ): void;
 
   /**
    * Apply a template with given variables
+   * @param {string} name Template name
+   * @param {Object} variables Values for template variables
+   * @returns {Promise<string>} Processed template with variables replaced
    * @throws {Error} When template is not found
    * @throws {Error} When required variables are missing
+   * @throws {Error} When variables fail validation
+   * @example
+   * // Variables are merged with defaults from entire inheritance chain
+   * const message = await templates.apply('translator', {
+   *   query: 'Translate "hello" to {language}',
+   *   language: 'Spanish'
+   * });
    */
   apply(
     name: string,
     variables?: Record<string, any>
   ): Promise<string>;
+
+  /**
+   * Add validation schema for a template
+   * @param {string} name Template name
+   * @param {Object} schema Validation schema
+   * @example
+   * templates.addSchema('myTemplate', {
+   *   age: { type: 'number', min: 0, max: 150 },
+   *   email: { type: 'string', pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$' }
+   * });
+   */
+  addSchema(
+    name: string,
+    schema: Record<string, Object>
+  ): void;
+
+  /**
+   * Add custom validation rule
+   * @param {string} name Rule name
+   * @param {Function} validator Validation function
+   * @example
+   * templates.addValidationRule('isEven', value => value % 2 === 0);
+   */
+  addValidationRule(
+    name: string,
+    validator: (value: any) => boolean
+  ): void;
+
+  /**
+   * Get template information
+   * @param {string} name Template name
+   * @returns {Object} Template details including inheritance chain
+   */
+  getTemplateInfo(name: string): {
+    content: string;
+    variables: string[];
+    defaults: Record<string, any>;
+    schema?: Object;
+    parent?: string;
+    inheritance: string[];
+  };
 }
 ```
 
@@ -124,16 +218,47 @@ class CompositionBuilder {
   constructor(session: Session);
 
   /**
+   * Configure caching for the composition
+   */
+  configureCaching(config: {
+    enabled?: boolean;
+    ttl?: number;
+    keyPrefix?: string;
+  }): CompositionBuilder;
+
+  /**
+   * Configure templates for the composition
+   */
+  configureTemplates(config: {
+    enabled?: boolean;
+    defaults?: Record<string, any>;
+    schemas?: Record<string, Object>;
+  }): CompositionBuilder;
+
+  /**
    * Add a processing step
    * @example
    * composer
    *   .pipe(async (input) => {
    *     const result = await session.prompt(input);
    *     return result.trim();
+   *   }, {
+   *     cache: { enabled: true },
+   *     template: {
+   *       name: 'myTemplate',
+   *       content: 'Process: {input}',
+   *       variables: { input: '' }
+   *     }
    *   })
    *   .build();
    */
-  pipe(fn: Function): CompositionBuilder;
+  pipe(
+    fn: Function,
+    options?: {
+      cache?: Object;
+      template?: Object;
+    }
+  ): CompositionBuilder;
 
   /**
    * Add a conditional branch
@@ -141,13 +266,17 @@ class CompositionBuilder {
   branch(
     condition: Function,
     ifTrue: Function,
-    ifFalse: Function
+    ifFalse: Function,
+    options?: Object
   ): CompositionBuilder;
 
   /**
    * Add parallel processing
    */
-  parallel(fns: Function[]): CompositionBuilder;
+  parallel(
+    fns: Function[],
+    options?: Object
+  ): CompositionBuilder;
 
   /**
    * Build the composition
@@ -169,6 +298,8 @@ Error: "The model attempted to output text in an untested language"
 Error: "Template '[name]' not found"
 Error: "Missing required parameter: [param]"
 Error: "Parent template '[name]' not found"
+Error: "Template validation failed: [details]"
+Error: "Circular inheritance detected: [chain]"
 
 // Session errors
 Error: "window.ai API not available"
@@ -222,15 +353,34 @@ try {
 }
 ```
 
-4. Handle template errors:
+4. Handle template errors and inheritance:
 ```typescript
 try {
-  const message = await templates.apply('myTemplate', variables);
+  // Register base template
+  templates.register('base', 'You are a {role}.\n{query}', {
+    defaults: { role: 'assistant' },
+    schema: {
+      role: { type: 'string' },
+      query: { type: 'string' }
+    }
+  });
+
+  // Create specialized template
+  templates.inherit('translator', 'base', {
+    defaults: { role: 'translator' }
+  });
+
+  // Apply template - inherits defaults from parent
+  const message = await templates.apply('translator', {
+    query: 'Translate "hello" to Spanish'
+  });
 } catch (error) {
   if (error.message?.includes('not found')) {
     console.error("Template error:", error.message);
   } else if (error.message?.includes('required parameter')) {
     console.error("Missing parameter:", error.message);
+  } else if (error.message?.includes('validation failed')) {
+    console.error("Validation error:", error.message);
   } else {
     throw error;
   }
@@ -246,7 +396,6 @@ import { createWindowChain } from 'window-chain';
 const chain = await createWindowChain({
   session: {
     systemPrompt: 'You are a helpful assistant'
-
   },
   cache: {
     distributed: true,
@@ -260,23 +409,31 @@ const chain = await createWindowChain({
   }
 });
 
-// Use features
-const template = chain.templates.register("t", 'Hello, {name}!');
-const begin = +new Date();
-const result = await chain.session.prompt(await chain.templates.apply("t", { name: "World" }));
-
-// Monitor performance
-chain.analytics.record('responseTime', +new Date() - begin);
-
-console.log(result);
-
-// Handle fallbacks
-const response = await chain.fallback.execute(async () => {
-  return await chain.session.prompt('Complex query');
+// Register base template
+chain.templates.register('base', 'You are a {role}.\n{query}', {
+  defaults: { role: 'helpful assistant' },
+  schema: {
+    role: { type: 'string' },
+    query: { type: 'string', minLength: 1 }
+  }
 });
 
-console.log(response);
-console.log(chain.analytics.metrics.get('responseTime'));
+// Create specialized template
+chain.templates.inherit('translator', 'base', {
+  defaults: { role: 'professional translator' }
+});
+
+// Use template with inheritance
+const message = await chain.templates.apply('translator', {
+  query: 'Translate "hello" to Spanish'
+});
+
+// Send to model with caching
+const result = await chain.session.prompt(message, {
+  cache: { enabled: true }
+});
+
+console.log(result);
 
 // Clean up
 await chain.destroy();
@@ -284,7 +441,10 @@ await chain.destroy();
 
 ## Migration Guide
 
-If you're upgrading from an earlier version, please note these changes:
+### 1.0.0
+- Added template inheritance with validation
+- Added caching in compositions
+- Added analytics tracking
 
 ### 0.1.0
 - Initial release with core features

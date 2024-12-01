@@ -286,7 +286,7 @@ test('TemplateSystem', async (t) => {
     templates.register('test', 'Hello {name}!');
     await assert.rejects(
       templates.apply('test', {}),
-      { message: 'Missing required parameter: name' }
+      { message: 'Missing required parameters: name' }
     );
   });
 

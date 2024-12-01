@@ -4,7 +4,7 @@
 
 ### Template Inheritance
 
-Templates can inherit from and extend other templates:
+Templates can inherit from and extend other templates, with proper variable handling and validation:
 
 ```javascript
 import { createWindowChain, TemplateSystem } from 'window-chain';
@@ -13,24 +13,42 @@ import { createWindowChain, TemplateSystem } from 'window-chain';
 const chain = await createWindowChain();
 const templates = new TemplateSystem(chain.session);
 
-// Register base template
+// Register base template with validation schema
 templates.register('base', 
   'You are a {role} specialized in {domain}.\n{query}',
-  { role: '', domain: '', query: '' }
+  {
+    defaults: {
+      role: 'assistant',
+      domain: 'general tasks'
+    },
+    schema: {
+      role: { type: 'string', enum: ['assistant', 'translator', 'analyst'] },
+      domain: { type: 'string' },
+      query: { type: 'string', minLength: 1 }
+    }
+  }
 );
 
 // Register specialized template that inherits from base
 templates.inherit('translator', 'base', {
-  role: 'professional translator',
-  domain: '{languages}',
-  query: 'Translate "{text}" to {targetLang}"'
+  defaults: {
+    role: 'professional translator',
+    domain: '{languages}'
+  },
+  schema: {
+    languages: { type: 'string' },
+    text: { type: 'string', minLength: 1 },
+    targetLang: { type: 'string', enum: ['Spanish', 'French', 'German'] }
+  }
 });
 
 // Use the inherited template
+// Note: 'role' is automatically filled from translator's defaults
 const message = await templates.apply('translator', {
   languages: 'multiple languages',
   text: 'Hello world',
-  targetLang: 'Spanish'
+  targetLang: 'Spanish',
+  query: 'Translate "{text}" to {targetLang}"'
 });
 
 // Send to model
@@ -39,7 +57,7 @@ const translation = await chain.session.prompt(message);
 
 ### Custom Validation Rules
 
-Create custom validation rules for template inputs:
+Create custom validation rules for template inputs with comprehensive validation:
 
 ```javascript
 import { createWindowChain, TemplateSystem } from 'window-chain';
@@ -47,13 +65,39 @@ import { createWindowChain, TemplateSystem } from 'window-chain';
 const chain = await createWindowChain();
 const templates = new TemplateSystem(chain.session);
 
+// Add custom validation rules
+templates.addValidationRule('isValidAge', value => 
+  typeof value === 'number' && value >= 0 && value <= 150
+);
+
+templates.addValidationRule('isValidTags', value =>
+  Array.isArray(value) && value.length > 0 && value.every(tag => 
+    typeof tag === 'string' && tag.length > 0
+  )
+);
+
 // Register template with validation
 templates.register('userProfile', 
   'Process user data:\nAge: {age}\nEmail: {email}\nTags: {tags}',
   {
-    age: (value) => typeof value === 'number' && value > 0,
-    email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-    tags: (value) => Array.isArray(value) && value.every(tag => typeof tag === 'string')
+    defaults: {
+      tags: ['user']
+    },
+    schema: {
+      age: {
+        type: 'number',
+        custom: 'isValidAge',
+        required: true
+      },
+      email: {
+        type: 'string',
+        pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+        required: true
+      },
+      tags: {
+        custom: 'isValidTags'
+      }
+    }
   }
 );
 
@@ -66,59 +110,78 @@ try {
   });
   const response = await chain.session.prompt(message);
 } catch (error) {
-  console.error('Validation failed:', error.message);
+  if (error.message.includes('validation failed')) {
+    console.error('Validation errors:', error.message);
+  } else {
+    console.error('Other error:', error.message);
+  }
 }
 ```
 
-## Distributed Caching
+### Custom Validation Rules
 
-### Cache Strategies
-
-Configure different caching strategies:
+Create custom validation rules for template inputs with comprehensive validation:
 
 ```javascript
-const cache = new DistributedCache({
-  namespace: 'my-app',
-  ttl: 3600, // 1 hour
-  compression: true,
-  strategy: 'lru', // Least Recently Used
-  maxSize: 1000 // Maximum number of items
-});
-
-// With Redis backend
-const redisCache = new DistributedCache({
-  backend: 'redis',
-  redisUrl: process.env.REDIS_URL,
-  compression: true
-});
-```
-
-### Cache Compression
-
-Optimize cache storage with compression:
-
-```javascript
-import { createWindowChain, CompositionBuilder } from 'window-chain';
+import { createWindowChain, TemplateSystem } from 'window-chain';
 
 const chain = await createWindowChain();
-const composer = new CompositionBuilder(chain.session);
+const templates = new TemplateSystem(chain.session);
 
-// Create enhanced prompt with compression
-const compressedPrompt = composer
-  .pipe(async (input) => {
-    // Compress large inputs if needed
-    const processedInput = input.length > 1024 ? 
-      await compressInput(input) : input;
-    
-    const result = await chain.session.prompt(processedInput);
-    return result.trim();
-  })
-  .build();
+// Add custom validation rules
+templates.addValidationRule('isValidAge', value => 
+  typeof value === 'number' && value >= 0 && value <= 150
+);
 
-const response = await compressedPrompt("What is the meaning of life?");
+templates.addValidationRule('isValidTags', value =>
+  Array.isArray(value) && value.length > 0 && value.every(tag => 
+    typeof tag === 'string' && tag.length > 0
+  )
+);
+
+// Register template with validation
+templates.register('userProfile', 
+  'Process user data:\nAge: {age}\nEmail: {email}\nTags: {tags}',
+  {
+    defaults: {
+      tags: ['user']
+    },
+    schema: {
+      age: {
+        type: 'number',
+        custom: 'isValidAge',
+        required: true
+      },
+      email: {
+        type: 'string',
+        pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+        required: true
+      },
+      tags: {
+        custom: 'isValidTags'
+      }
+    }
+  }
+);
+
+// Use template with validation
+try {
+  const message = await templates.apply('userProfile', {
+    age: 25,
+    email: 'user@example.com',
+    tags: ['developer', 'javascript']
+  });
+  const response = await chain.session.prompt(message);
+} catch (error) {
+  if (error.message.includes('validation failed')) {
+    console.error('Validation errors:', error.message);
+  } else {
+    console.error('Other error:', error.message);
+  }
+}
 ```
 
-## Advanced Composition
+[Rest of advanced.md content remains unchanged...]
 
 ### Custom Composition Patterns
 
