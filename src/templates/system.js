@@ -88,6 +88,15 @@ export class TemplateSystem {
   }
 
   /**
+   * Create a function that applies a template with given variables
+   * @param {string} name Template name
+   * @returns {function} Instantiated template
+   */
+  instantiate(name){
+    return (...vars)=>this.apply(name, ...vars);
+  }
+
+  /**
    * Extract variables from template content
    * @private
    */

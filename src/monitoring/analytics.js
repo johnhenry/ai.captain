@@ -27,19 +27,27 @@ export class PerformanceAnalytics {
     const values = this.metrics.get(name);
     if (!values || values.length === 0) {
       return {
+        name,
         count: 0,
-        average: 0,
-        min: 0,
-        max: 0
+        average: undefined,
+        min: undefined,
+        max: undefined,
+        variance:undefined,
+        sd:undefined
       };
     }
 
     const sum = values.reduce((a, b) => a + b, 0);
+    const variance = values.reduce((a, b) => a + (b - sum / values.length) ** 2, 0);
+    const sd = Math.sqrt(variance / values.length);
     return {
+      name,
       count: values.length,
       average: sum / values.length,
       min: Math.min(...values),
-      max: Math.max(...values)
+      max: Math.max(...values),
+      variance,
+      sd
     };
   }
 

@@ -261,16 +261,22 @@ const chain = await createWindowChain({
 });
 
 // Use features
-const template = chain.templates.create('Hello, {name}!');
-const result = await chain.session.prompt(template({ name: 'World' }));
+const template = chain.templates.register("t", 'Hello, {name}!');
+const begin = +new Date();
+const result = await chain.session.prompt(await chain.templates.apply("t", { name: "World" }));
 
 // Monitor performance
-chain.analytics.record('responseTime', 150);
+chain.analytics.record('responseTime', +new Date() - begin);
+
+console.log(result);
 
 // Handle fallbacks
 const response = await chain.fallback.execute(async () => {
   return await chain.session.prompt('Complex query');
 });
+
+console.log(response);
+console.log(chain.analytics.metrics.get('responseTime'));
 
 // Clean up
 await chain.destroy();

@@ -2,15 +2,18 @@
 
 (https://developer.chrome.com/docs/extensions/ai/prompt-api#model_capabilities)
 
+
 ## Add support to localhost
 
 To access the Prompt API on localhost during the origin trial, you must update Chrome to the latest version. Then, follow these steps:
 
 1. Open Chrome on one of these platforms: Windows, Mac, or Linux.
-1. Go to chrome://flags/#optimization-guide-on-device-model.
-1. Select Enabled BypassPerfRequirement.
+1. Go to `chrome://flags/#optimization-guide-on-device-model.
+1. Select Enabled BypassPerfRequirement`.
    - This skips performance checks which may prevent you from downloading Gemini Nano onto your device.
 1. Click Relaunch or restart Chrome.
+
+1. You may have to visit `chrome://components` and check for updates to the `Optimization Guide` component.
 
 ## Use the Prompt API
 
@@ -194,16 +197,19 @@ const {available, defaultTemperature, defaultTopK, maxTopK } =
 await window.ai.languageModel.capabilities();
 
 if (available !== 'no') {
-const session = await window.ai.languageModel.create();
+  const session = await window.ai.languageModel.create();
+  // Prompt the model and stream the result:
+  const stream = session.promptStreaming('Write me an extra-long poem!');
+  for await (const chunk of stream) {
+  console.log(chunk);
+  }
+}
 
-// Prompt the model and stream the result:
-const stream = session.promptStreaming('Write me an extra-long poem!');
-for await (const chunk of stream) {
-console.log(chunk);
-}
-}
-promptStreaming() returns a ReadableStream whose chunks successively build on each other. For example, "Hello,", "Hello world,", "Hello world I am,", "Hello world I am an AI.". This isn't the intended behavior. We intend to align with other streaming APIs on the platform, where the chunks are successive pieces of a single long stream. This means the output would be a sequence like "Hello", " world", " I am", " an AI".
 ```
+
+
+`promptStreaming()` returns a ReadableStream whose chunks successively build on each other. For example, "Hello,", "Hello world,", "Hello world I am,", "Hello world I am an AI.". This isn't the intended behavior. We intend to align with other streaming APIs on the platform, where the chunks are successive pieces of a single long stream. This means the output would be a sequence like "Hello", " world", " I am", " an AI".
+
 
 For now, to achieve the intended behavior, you can implement the following. This works with both the standard and the non-standard behavior.
 

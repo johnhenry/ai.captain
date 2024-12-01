@@ -57,3 +57,9 @@
    - [ ] Add more AI model providers
    - [ ] Implement cross-model abstractions
    - [ ] Add plugin system
+
+### Demo
+
+10. Tabbed interface
+
+In demo.html please make the following changes. Thanks in advance!
