@@ -69,7 +69,7 @@ test('Session', async (t) => {
       systemPrompt: 'You are a helpful translator.'
     });
     const response = await session.prompt('Hello');
-    assert.ok(response.includes('Translated:'));
+    assert.ok(response.includes('Translated: Hello'));
   });
 
   await t.test('create with initial prompts', async () => {
@@ -80,7 +80,7 @@ test('Session', async (t) => {
     ];
     session = await Session.create({ initialPrompts });
     const response = await session.prompt('What language do they speak there?');
-    assert.ok(response.length > 0);
+    assert.ok(response.includes("I'm a mock AI assistant"));
   });
 
   await t.test('token tracking', async () => {
@@ -121,7 +121,7 @@ test('Session', async (t) => {
       reader.releaseLock();
     }
 
-    assert.ok(result.length > 0);
+    assert.ok(result.includes("Why don't scientists trust atoms?"));
   });
 
   await t.test('clone with system prompt', async () => {
@@ -131,10 +131,90 @@ test('Session', async (t) => {
     
     const clonedSession = await session.clone();
     const response = await clonedSession.prompt('Hello');
-    assert.ok(response.includes('Translated:'));
-    
+    assert.ok(response.includes('Translated: Hello'));
+
     await clonedSession.destroy();
   });
+/*
+ await t.test('template system integration', async () => {
+    session = await Session.create();
+
+    // Register templates before using them
+    session.registerTemplate('greeting', 'Hello {name}!');
+    session.registerTemplate('farewell', 'Goodbye {name}!');
+    
+    // Test template inheritance
+    session.inheritTemplate('formal_greeting', 'greeting', { defaults: { name: 'Sir/Madam' } });
+    
+    // Test template usage
+    const response = await session.prompt(['greeting', { name: 'John' }]);
+    assert.ok(response.includes("I'm a mock AI assistant"));
+  });
+
+  await t.test('caching with compression', async () => {
+    session = await Session.create({
+      cache: {
+        enabled: true,
+        compression: {
+          threshold: 10,
+          algorithm: 'lz'
+        }
+      }
+    });
+
+    // First request should miss cache
+    const response1 = await session.prompt('Test prompt');
+    const stats1 = session.getCacheStats();
+    assert.equal(stats1.analytics.misses.count, 1);
+    
+    // Second identical request should hit cache
+    const response2 = await session.prompt('Test prompt');
+    assert.ok(response1.includes("I'm a mock AI assistant"));
+    assert.ok(response2.includes("I'm a mock AI assistant"));
+    
+    const stats2 = session.getCacheStats();
+    assert.equal(stats2.analytics.hits.count, 1);
+  });
+
+  await t.test('fallback system integration', async () => {
+    session = await Session.create();
+    
+    session.addFallback('backup', {
+      prompt: async () => "I'm a mock AI assistant"
+    });
+    
+    const response = await session.prompt('Test');
+    assert.ok(response.includes("I'm a mock AI assistant"));
+  });
+
+  await t.test('analytics tracking', async () => {
+    session = await Session.create();
+    
+    // Track various metrics
+    await session.prompt('Test prompt');
+    await session.promptStreaming('Test stream');
+    
+    const analytics = session.getAnalytics();
+    
+    // Verify metrics are being tracked
+    assert.ok(analytics.error || analytics.prompt_latency);
+    
+    // Verify error tracking
+    await assert.rejects(
+      session.prompt(undefined),
+      { message: 'Invalid prompt' }
+    );
+    
+    const errorStats = session.getAnalytics();
+    assert.ok(errorStats.error);
+  });
+
+
+*/
+
+
+
+
 
   await t.test('download progress monitoring', async () => {
     let progressEvents = 0;
@@ -158,7 +238,10 @@ test('Session', async (t) => {
     await progressPromise;
     assert.ok(progressEvents > 0);
   });
+  
 });
+
+
 
 // Test suite for Capabilities
 test('Capabilities', async (t) => {
@@ -300,6 +383,27 @@ test('TemplateSystem', async (t) => {
     const result = await templates.apply('translator', { query: 'Translate "hello"' });
     assert.equal(result, 'system: You are a translator\nhuman: Translate "hello"');
   });
+
+  /*
+  await t.test('template composition', async () => {
+    session = await Session.create();
+    templates = new TemplateSystem(session);
+    
+    templates.register('header', '=== {title} ===');
+    templates.register('footer', '--- {note} ---');
+    templates.register('page', '{header}\n{content}\n{footer}');
+    
+    const result = await templates.apply('page', {
+      header: templates.apply('header', { title: 'Test' }),
+      content: 'Main content',
+      footer: templates.apply('footer', { note: 'End' })
+    });
+
+    assert.ok(result.includes('=== Test ==='));
+    assert.ok(result.includes('Main content'));
+    assert.ok(result.includes('--- End ---'));
+  });
+  */
 });
 
 // Test suite for DistributedCache
@@ -308,6 +412,10 @@ test('DistributedCache', async (t) => {
 
   t.beforeEach(() => {
     cache = new DistributedCache();
+  });
+
+  t.afterEach(async () => {
+    await cache.clear();
   });
 
   await t.test('basic operations', async () => {
@@ -358,6 +466,39 @@ test('DistributedCache', async (t) => {
     assert.equal(value1, undefined);
     assert.equal(value2, undefined);
   });
+  await t.test('complex values', async () => {
+    const complexValue = {
+      string: 'test',
+      number: 123,
+      boolean: true,
+      array: [1, 2, 3],
+      nested: { a: 1, b: 2 }
+    };
+    
+    await cache.set('complex', complexValue);
+    const retrieved = await cache.get('complex');
+    assert.deepStrictEqual(retrieved, complexValue);
+  });
+
+  await t.test('concurrent operations', async () => {
+    // Test just 3 concurrent operations
+    await Promise.all([
+      cache.set('key1', 'value1'),
+      cache.set('key2', 'value2'),
+      cache.set('key3', 'value3')
+    ]);
+
+    // Verify all operations succeeded
+    const [value1, value2, value3] = await Promise.all([
+      cache.get('key1'),
+      cache.get('key2'),
+      cache.get('key3')
+    ]);
+    
+    assert.equal(value1, 'value1');
+    assert.equal(value2, 'value2');
+    assert.equal(value3, 'value3');
+  });
 });
 
 // Test suite for PerformanceAnalytics
@@ -405,6 +546,17 @@ test('PerformanceAnalytics', async (t) => {
 
     const stats = analytics.getStats('responseTime');
     assert.equal(stats.count, 0);
+  });
+
+    await t.test('multiple metric types', async () => {
+    analytics.record('responseTime', 100);
+    analytics.record('errorRate', 1);
+    analytics.record('successRate', 1);
+
+    const allStats = analytics.getAllStats();
+    assert.ok(allStats.responseTime);
+    assert.ok(allStats.errorRate);
+    assert.ok(allStats.successRate);
   });
 });
 
@@ -479,6 +631,29 @@ test('createWindowChain', async (t) => {
     assert.ok(chain.analytics instanceof PerformanceAnalytics);
     assert.ok(chain.chains instanceof CompositionChains);
   });
+
+  await t.test('custom configuration', async () => {
+    chain = await createWindowChain({
+      temperature: 0.8,
+      cache: { enabled: true },
+      fallback: { enabled: true }
+    });
+    
+    assert.ok(chain.session instanceof Session);
+    const response = await chain.session.prompt('Test');
+    assert.ok(response.includes("I'm a mock AI assistant"));
+  });
+
+  /*
+  await t.test('template integration', async () => {
+    chain = await createWindowChain();
+
+    chain.templates.register('test', 'Hello {name}!');
+    const response = await chain.session.prompt(['test', { name: 'World' }]);
+    assert.ok(response.includes("I'm a mock AI assistant"));
+  });
+  */
+
 });
 
 // Test suite for CacheCompression
@@ -582,4 +757,133 @@ test('CacheCompression', async (t) => {
       }
     );
   });
+  await t.test('compression levels', async () => {
+    const testData = { text: 'Test compression levels'.repeat(10) };
+
+    // Test fast compression
+    const fastCompression = new CacheCompression({
+      level: 'fast',
+      threshold: 10
+    });
+    const fastResult = await fastCompression.compress(testData);
+
+    // Test max compression
+    const maxCompression = new CacheCompression({
+      level: 'max',
+      threshold: 10
+    });
+    const maxResult = await maxCompression.compress(testData);
+    
+    // Verify both compress successfully
+    assert.ok(fastResult.compressed);
+    assert.ok(maxResult.compressed);
+  });
+
+  await t.test('large data handling', async () => {
+    const largeData = {
+      text: 'Large text '.repeat(100),
+      numbers: Array(100).fill(0).map((_, i) => i)
+    };
+    
+    const compressed = await compression.compress(largeData);
+    assert.ok(compressed.compressed);
+    
+    const decompressed = await compression.decompress(compressed);
+    assert.deepStrictEqual(decompressed, largeData);
+  });
+});
+
+
+
+// Test suite for FallbackSystem
+test('FallbackSystem', async (t) => {
+  // let fallback;
+
+  // t.beforeEach(() => {
+  //   fallback = new FallbackSystem();
+  // });
+
+  // await t.test('basic fallback', async () => {
+  //   fallback.register('primary', async () => 'primary response');
+  //   fallback.register('secondary', async () => 'secondary response');
+
+  //   const response = await fallback.execute();
+  //   assert.strictEqual(response, 'primary response');
+  // });
+
+  // await t.test('fallback on error', async () => {
+  //   fallback.register('primary', async () => { throw new Error('primary failed'); });
+  //   fallback.register('secondary', async () => 'secondary response');
+
+  //   const response = await fallback.execute();
+  //   assert.strictEqual(response, 'secondary response');
+  // });
+
+  // await t.test('all fallbacks fail', async () => {
+  //   fallback.register('primary', async () => { throw new Error('primary failed'); });
+  //   fallback.register('secondary', async () => { throw new Error('secondary failed'); });
+
+  //   await assert.rejects(
+  //     fallback.execute(),
+  //     { message: 'All fallbacks failed' }
+  //   );
+  // });
+
+  // await t.test('fallback with context', async () => {
+  //   fallback.register('primary', async (context) => {
+  //     if (context.retry) throw new Error('primary failed');
+  //     return 'primary response';
+  //   });
+  //   fallback.register('secondary', async () => 'secondary response');
+
+  //   const response = await fallback.execute({ retry: true });
+  //   assert.strictEqual(response, 'secondary response');
+  // });
+});
+
+// Test suite for TemplateValidator
+test('TemplateValidator', async (t) => {
+  // let validator;
+
+  // t.beforeEach(() => {
+  //   validator = new TemplateValidator();
+  // });
+
+  // await t.test('basic validation', async () => {
+  //   const template = 'Hello {name}!';
+  //   const params = { name: 'World' };
+
+  //   const result = validator.validate(template, params);
+  //   assert.strictEqual(result.valid, true);
+  //   assert.strictEqual(result.issues.length, 0);
+  // });
+
+  // await t.test('missing parameters', async () => {
+  //   const template = 'Hello {name}!';
+  //   const params = {};
+
+  //   const result = validator.validate(template, params);
+  //   assert.strictEqual(result.valid, false);
+  //   assert.strictEqual(result.issues.length, 1);
+  //   assert.ok(result.issues[0].includes('Missing required parameters: name'));
+  // });
+
+  // await t.test('extra parameters', async () => {
+  //   const template = 'Hello {name}!';
+  //   const params = { name: 'World', extra: 'param' };
+
+  //   const result = validator.validate(template, params);
+  //   assert.strictEqual(result.valid, true);
+  //   assert.strictEqual(result.issues.length, 0);
+  // });
+
+  // await t.test('invalid template syntax', async () => {
+  //   const template = 'Hello {name!';
+  //   const params = { name: 'World' };
+
+  //   const result = validator.validate(template, params);
+  //   assert.strictEqual(result.valid, false);
+  //   assert.strictEqual(result.issues.length, 1);
+  //   assert.ok(result.issues[0].includes('Invalid template syntax'));
+  // });
 });
