@@ -1,26 +1,9 @@
 // Import the functions to be tested
-import { windowAI } from './window.ai.mock.mjs';
-import {
-  FileReader,
-  TextEncoder,
-  Blob,
-  CompressionStream,
-  DecompressionStream,
-  Response,
-
-} from './browser.mock.mjs';
-
-// Set up browser API mocks
-globalThis.ai = windowAI;
-globalThis.FileReader = FileReader;
-globalThis.TextEncoder = TextEncoder;
-globalThis.Blob = Blob;
-globalThis.CompressionStream = CompressionStream;
-globalThis.DecompressionStream = DecompressionStream;
-globalThis.Response = Response;
-
-
-
+import * as w from './mocks/window.mjs';
+for(const [key, value] of Object.entries(w)) {
+  globalThis[key] = value;
+}
+// Import tests
 import "./fallback.mjs";
 import "./validation.mjs";
 import "./session.mjs";

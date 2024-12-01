@@ -1,3 +1,5 @@
+export { default as ai } from './ai.mock.mjs';
+
 // Mock FileReader
 export class FileReader {
   constructor() {

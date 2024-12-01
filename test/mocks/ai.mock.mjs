@@ -279,7 +279,4 @@ export const windowAI = {
   languageModel: mockLanguageModel
 };
 
-// Attach to window object if in browser environment
-if (typeof window !== 'undefined') {
-  window.ai = windowAI;
-}
+export default windowAI;

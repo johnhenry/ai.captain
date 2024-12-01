@@ -1,7 +1,6 @@
 import { strict as assert } from 'assert';
 import test from 'node:test';
 import { FallbackSystem } from '../src/monitoring/fallback.js';
-import { windowAI } from './window.ai.mock.mjs';
 
 // Mock session class for testing
 class MockSession {
