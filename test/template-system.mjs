@@ -13,11 +13,14 @@ class MockSession {
   destroy() {}
 }
 
-
-// Test suite for TemplateSystem
 test('TemplateSystem', async (t) => {
   let session;
   let templates;
+
+  t.beforeEach(() => {
+    session = new MockSession();
+    templates = new TemplateSystem(session);
+  });
 
   t.afterEach(async () => {
     if (session) {
@@ -26,63 +29,62 @@ test('TemplateSystem', async (t) => {
     }
   });
 
-  await t.test('basic functionality', async () => {
-    session = new MockSession();
-    templates = new TemplateSystem(session);
-    
-    // Test template registration
-    templates.register('translate', 'system: You are a helpful translator.\nhuman: Translate "{text}" to {language}."');
-    templates.register('sentiment', 'system: You analyze sentiment and return JSON.\nhuman: Analyze the sentiment of this text: {text}');
-    
-    // Test template application
-    const translatedText = await templates.apply('translate', { text: 'Hello', language: 'Spanish' });
-    assert.ok(translatedText.includes('Translate "Hello" to Spanish'));
-    
-    const sentimentText = await templates.apply('sentiment', { text: 'I love this!' });
-    assert.ok(sentimentText.includes('Analyze the sentiment of this text: I love this!'));
-  });
-
-  await t.test('template validation', async () => {
-    session = new MockSession();
-    templates = new TemplateSystem(session);
-    
-    // Test missing parameter handling
-    templates.register('test', 'Hello {name}!');
-    await assert.rejects(
-      templates.apply('test', {}),
-      { message: 'Missing required parameters: name' }
-    );
-  });
-
-  await t.test('template inheritance', async () => {
-    session = new MockSession();
-    templates = new TemplateSystem(session);
-    
-    templates.register('base', 'system: {role}\nhuman: {query}');
-    templates.inherit('translator', 'base', { defaults: { role: 'You are a translator' } });
-
-    const result = await templates.apply('translator', { query: 'Translate "hello"' });
-    assert.equal(result, 'system: You are a translator\nhuman: Translate "hello"');
-  });
-
-
-  await t.test('template composition', async () => {
-    session = new MockSession();
-    templates = new TemplateSystem(session);
-    
-    templates.register('header', '=== {title} ===');
-    templates.register('footer', '--- {note} ---');
-    templates.register('page', '{header}\n{content}\n{footer}');
-    
-    const result = await templates.apply('page', {
-      header: await templates.apply('header', { title: 'Test' }),
-      content: 'Main content',
-      footer: await templates.apply('footer', { note: 'End' })
+  // Core functionality tests
+  await t.test('core functionality', async (t) => {
+    await t.test('should register and apply basic templates', async () => {
+      templates.register('translate', 'system: You are a helpful translator.\nhuman: Translate "{text}" to {language}."');
+      
+      const translatedText = await templates.apply('translate', { text: 'Hello', language: 'Spanish' });
+      assert.ok(translatedText.includes('Translate "Hello" to Spanish'));
     });
 
-    assert.ok(result.includes('=== Test ==='));
-    assert.ok(result.includes('Main content'));
-    assert.ok(result.includes('--- End ---'));
+    await t.test('should handle multiple templates', async () => {
+      templates.register('translate', 'system: You are a helpful translator.\nhuman: Translate "{text}" to {language}."');
+      templates.register('sentiment', 'system: You analyze sentiment and return JSON.\nhuman: Analyze the sentiment of this text: {text}');
+      
+      const sentimentText = await templates.apply('sentiment', { text: 'I love this!' });
+      assert.ok(sentimentText.includes('Analyze the sentiment of this text: I love this!'));
+    });
   });
 
+  // Parameter validation tests
+  await t.test('parameter validation', async (t) => {
+    await t.test('should reject when required parameters are missing', async () => {
+      templates.register('test', 'Hello {name}!');
+      await assert.rejects(
+        templates.apply('test', {}),
+        { message: 'Missing required parameters: name' }
+      );
+    });
+  });
+
+  // Template inheritance tests
+  await t.test('template inheritance', async (t) => {
+    await t.test('should properly inherit and apply default parameters', async () => {
+      templates.register('base', 'system: {role}\nhuman: {query}');
+      templates.inherit('translator', 'base', { defaults: { role: 'You are a translator' } });
+
+      const result = await templates.apply('translator', { query: 'Translate "hello"' });
+      assert.equal(result, 'system: You are a translator\nhuman: Translate "hello"');
+    });
+  });
+
+  // Template composition tests
+  await t.test('template composition', async (t) => {
+    await t.test('should compose multiple templates together', async () => {
+      templates.register('header', '=== {title} ===');
+      templates.register('footer', '--- {note} ---');
+      templates.register('page', '{header}\n{content}\n{footer}');
+      
+      const result = await templates.apply('page', {
+        header: await templates.apply('header', { title: 'Test' }),
+        content: 'Main content',
+        footer: await templates.apply('footer', { note: 'End' })
+      });
+
+      assert.ok(result.includes('=== Test ==='));
+      assert.ok(result.includes('Main content'));
+      assert.ok(result.includes('--- End ---'));
+    });
+  });
 });

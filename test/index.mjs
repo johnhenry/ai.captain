@@ -3,14 +3,21 @@ import * as w from './mocks/window.mjs';
 for(const [key, value] of Object.entries(w)) {
   globalThis[key] = value;
 }
-// Import tests
-import "./fallback.mjs";
-import "./validation.mjs";
-import "./session.mjs";
-import "./capabilities.mjs";
-import "./template-system.mjs";
-import "./distributed-cache.mjs";
-import "./performance-analytics.mjs";
-import "./composition-chains.mjs";
-import "./create-window-chain.mjs";
-import "./cache-compression.mjs";
+
+// Core functionality tests
+import "./session.mjs";           // Core session management
+import "./validation.mjs";        // Core validation system
+import "./capabilities.mjs";      // Core capabilities detection
+
+// Feature-specific tests
+import "./template-system.mjs";   // Template handling
+import "./distributed-cache.mjs"; // Caching system
+import "./performance-analytics.mjs"; // Performance monitoring
+
+// Integration tests
+import "./composition-chains.mjs";   // Chain composition
+import "./create-window-chain.mjs";  // Window chain creation
+
+// Enhancement tests
+import "./cache-compression.mjs";    // Cache compression features
+import "./fallback.mjs";            // Fallback behavior
