@@ -100,12 +100,16 @@ export class TemplateSystem {
     const allRequiredVars = new Set();
     for (const templateName of templateChain) {
       const currentTemplate = this.templates.get(templateName);
-      currentTemplate.variables.forEach(v => allRequiredVars.add(v));
+      currentTemplate.variables.forEach(v => {
+        // Only add to required vars if it's not already provided in finalVars
+        if (finalVars[v] === undefined) {
+          allRequiredVars.add(v);
+        }
+      });
     }
 
     // Check for missing variables
-    const missingVars = Array.from(allRequiredVars)
-      .filter(varName => finalVars[varName] === undefined);
+    const missingVars = Array.from(allRequiredVars);
     if (missingVars.length > 0) {
       throw new Error(`Missing required parameters: ${missingVars.join(', ')}`);
     }

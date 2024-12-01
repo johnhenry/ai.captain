@@ -295,7 +295,7 @@ test('TemplateSystem', async (t) => {
     templates = new TemplateSystem(session);
     
     templates.register('base', 'system: {role}\nhuman: {query}');
-    templates.inherit('translator', 'base', { role: 'You are a translator' });
+    templates.inherit('translator', 'base', { defaults: { role: 'You are a translator' } });
     
     const result = await templates.apply('translator', { query: 'Translate "hello"' });
     assert.equal(result, 'system: You are a translator\nhuman: Translate "hello"');
