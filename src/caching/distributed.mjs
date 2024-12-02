@@ -1,7 +1,7 @@
 /**
  * Simple distributed caching system with TTL support
  */
-export class DistributedCache {
+class DistributedCache {
   constructor(options = {}) {
     this.defaultTTL = options.defaultTTL || 3600000; // 1 hour default
     this.store = new Map();
@@ -67,3 +67,5 @@ export class DistributedCache {
     };
   }
 }
+
+export { DistributedCache };

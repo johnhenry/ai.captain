@@ -1,7 +1,7 @@
 /**
  * Simple composition chains for window.ai
  */
-export class CompositionChains {
+class CompositionChains {
   constructor(session) {
     this.session = session;
   }
@@ -332,3 +332,5 @@ class Chain {
     );
   }
 }
+
+export { CompositionChains, Chain };

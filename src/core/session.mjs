@@ -450,3 +450,5 @@ export class Session {
     this.#templates = templates;
   }
 }
+
+export { createSession, destroySession, Session };

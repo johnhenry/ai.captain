@@ -1,7 +1,7 @@
 /**
  * Advanced template validation system
  */
-export class TemplateValidator {
+class TemplateValidator {
   constructor() {
     this.rules = new Map();
     this._initializeDefaultRules();
@@ -127,3 +127,5 @@ export class TemplateValidator {
     };
   }
 }
+
+export { TemplateValidator };

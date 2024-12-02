@@ -1,7 +1,7 @@
 /**
  * Advanced fallback system with model switching and monitoring
  */
-export class FallbackSystem {
+class FallbackSystem {
   constructor(session, options = {}) {
     this.primarySession = session;
     this.options = {
@@ -239,3 +239,5 @@ export class FallbackSystem {
     this.strategyHandlers.clear();
   }
 }
+
+export { FallbackSystem };

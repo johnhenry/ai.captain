@@ -1,7 +1,7 @@
 /**
  * Template string validator
  */
-export class TemplateValidator {
+class TemplateValidator {
   /**
    * Validate a template string and its parameters
    * @param {string} template Template string containing {param} placeholders
@@ -36,3 +36,5 @@ export class TemplateValidator {
     };
   }
 }
+
+export { TemplateValidator };

@@ -1,7 +1,7 @@
 /**
  * Cache compression utilities
  */
-export class CacheCompression {
+class CacheCompression {
   constructor(options = {}) {
     this.options = {
       algorithm: options.algorithm || 'lz',  // 'lz' or 'deflate'
@@ -196,3 +196,5 @@ export class CacheCompression {
     };
   }
 }
+
+export { CacheCompression };
