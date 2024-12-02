@@ -1,7 +1,7 @@
 /**
  * Template system for window.ai prompts
  */
-import { TemplateValidator } from './validation.js';
+import { TemplateValidator } from './validation.mjs';
 
 export class TemplateSystem {
   constructor(session) {

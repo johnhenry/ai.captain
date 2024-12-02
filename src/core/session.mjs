@@ -1,19 +1,44 @@
 /**
  * Session management for window.ai
+ * @module session
  */
 
-import { DistributedCache } from '../caching/distributed.js';
-import { CacheCompression } from '../caching/compression.js';
-import { TemplateSystem } from '../templates/system.js';
-import { FallbackSystem } from '../monitoring/fallback.js';
-import { PerformanceAnalytics } from '../monitoring/analytics.js';
+import { DistributedCache } from '../caching/distributed.mjs';
+import { CacheCompression } from '../caching/compression.mjs';
+import { TemplateSystem } from '../templates/system.mjs';
+import { FallbackSystem } from '../monitoring/fallback.mjs';
+import { PerformanceAnalytics } from '../monitoring/analytics.mjs';
 
 // Determine if running in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
 /**
+ * @typedef {Object} SessionOptions
+ * @property {Object} [cache] - Cache configuration
+ * @property {boolean} [cache.enabled] - Enable caching
+ * @property {number} [cache.ttl] - Cache TTL in milliseconds
+ * @property {Object} [cache.compression] - Compression options
+ * @property {('lz'|'deflate')} [cache.compression.algorithm] - Compression algorithm
+ * @property {('fast'|'default'|'max')} [cache.compression.level] - Compression level
+ * @property {number} [cache.compression.threshold] - Compression threshold in bytes
+ * @property {Object} [fallback] - Fallback configuration
+ * @property {Function} [fallback.onFallback] - Fallback callback
+ */
+
+/**
+ * @typedef {Object} PromptOptions
+ * @property {string} [model] - Model name
+ * @property {number} [temperature] - Temperature (0-1)
+ * @property {number} [maxTokens] - Maximum tokens
+ * @property {boolean} [cache] - Enable/disable caching for this request
+ */
+
+/**
  * Generate a cache key from input text and options
  * @private
+ * @param {string} text - Input text
+ * @param {PromptOptions} [options] - Prompt options
+ * @returns {string} Cache key
  */
 function generateCacheKey(text, options = {}) {
   // Create a string that includes both text and relevant options
@@ -37,8 +62,9 @@ function generateCacheKey(text, options = {}) {
 
 /**
  * Create a new window.ai session
- * @param {Object} options Configuration options
+ * @param {SessionOptions} [options] - Configuration options
  * @returns {Promise<Object>} window.ai session
+ * @throws {Error} If window.ai API is not available
  */
 export async function createSession(options = {}) {
   // Use window.ai if available, otherwise use the mock implementation
@@ -54,7 +80,7 @@ export async function createSession(options = {}) {
 
 /**
  * Destroy a window.ai session
- * @param {Object} session window.ai session
+ * @param {Object} session - window.ai session
  * @returns {Promise<void>}
  */
 export async function destroySession(session) {
@@ -62,24 +88,27 @@ export async function destroySession(session) {
 }
 
 /**
- * A class representing a window.ai session
+ * A class representing a window.ai session with caching and template support
  */
 export class Session {
-  #session;
-  #cache;
-  #compression;
-  #cacheEnabled;
-  #cacheTTL;
-  #templates;
-  #fallback;
-  #analytics;
-  get templates(){
+  /** @type {Object} */ #session;
+  /** @type {DistributedCache} */ #cache;
+  /** @type {CacheCompression} */ #compression;
+  /** @type {boolean} */ #cacheEnabled;
+  /** @type {number} */ #cacheTTL;
+  /** @type {TemplateSystem} */ #templates;
+  /** @type {FallbackSystem} */ #fallback;
+  /** @type {PerformanceAnalytics} */ #analytics;
+
+  /** @returns {TemplateSystem} Template system instance */
+  get templates() {
     return this.#templates;
   }
+
   /**
    * Create a new Session instance
-   * @param {Object} session window.ai session
-   * @param {Object} options Configuration options
+   * @param {Object} session - window.ai session
+   * @param {SessionOptions} [options] - Configuration options
    */
   constructor(session, options = {}) {
     this.#session = session;
@@ -129,8 +158,8 @@ export class Session {
 
   /**
    * Create a new Session instance
-   * @param {Object} options Configuration options
-   * @returns {Promise<Session>}
+   * @param {SessionOptions} [options] - Configuration options
+   * @returns {Promise<Session>} New session instance
    */
   static async create(options = {}) {
     const session = await createSession(options);
@@ -139,9 +168,9 @@ export class Session {
 
   /**
    * Register a new template
-   * @param {string} name Template name
-   * @param {string} content Template content
-   * @param {Object} [defaults={}] Default values for template variables
+   * @param {string} name - Template name
+   * @param {string} content - Template content
+   * @param {Object} [defaults={}] - Default values for template variables
    */
   registerTemplate(name, content, defaults = {}) {
     this.#templates.register(name, content, defaults);
@@ -149,9 +178,9 @@ export class Session {
 
   /**
    * Create a new template that inherits from a parent template
-   * @param {string} name New template name
-   * @param {string} parentName Parent template name
-   * @param {Object} [defaults={}] Default values for template variables
+   * @param {string} name - New template name
+   * @param {string} parentName - Parent template name
+   * @param {Object} [defaults={}] - Default values for template variables
    */
   inheritTemplate(name, parentName, defaults = {}) {
     this.#templates.inherit(name, parentName, defaults);
@@ -160,6 +189,9 @@ export class Session {
   /**
    * Process input text, handling template arrays if provided
    * @private
+   * @param {string|Array} input - Input text or template array
+   * @returns {Promise<string>} Processed text
+   * @throws {Error} If template array is empty
    */
   async #processInput(input) {
     if (Array.isArray(input)) {
@@ -167,9 +199,6 @@ export class Session {
         throw new Error('Template array cannot be empty');
       }
       const [templateName, variables] = input;
-
-
-      // Convert array of variables to object with numbered keys
       return this.#templates.apply(templateName, variables);
     }
     return input;
@@ -177,9 +206,10 @@ export class Session {
 
   /**
    * Send a prompt to the window.ai session
-   * @param {string|Array} text Prompt text or template array
-   * @param {Object} options Configuration options
+   * @param {string|Array} text - Prompt text or template array
+   * @param {PromptOptions} [options] - Configuration options
    * @returns {Promise<string>} Response from window.ai
+   * @throws {Error} If prompt fails
    */
   async prompt(text, options = {}) {
     const startTime = Date.now();
@@ -229,9 +259,10 @@ export class Session {
 
   /**
    * Send a prompt to the window.ai session and receive a streaming response
-   * @param {string|Array} text Prompt text or template array
-   * @param {Object} options Configuration options
+   * @param {string|Array} text - Prompt text or template array
+   * @param {PromptOptions} [options] - Configuration options
    * @returns {Promise<ReadableStream>} ReadableStream of responses from window.ai
+   * @throws {Error} If prompt fails
    */
   async promptStreaming(text, options = {}) {
     const startTime = Date.now();
@@ -303,8 +334,8 @@ export class Session {
 
   /**
    * Add a fallback session
-   * @param {string} name Session name
-   * @param {Object} session Session instance
+   * @param {string} name - Session name
+   * @param {Object} session - Session instance
    */
   addFallback(name, session) {
     this.#fallback.addFallback(name, session);
@@ -312,7 +343,7 @@ export class Session {
 
   /**
    * Remove a fallback session
-   * @param {string} name Session name
+   * @param {string} name - Session name
    */
   removeFallback(name) {
     this.#fallback.removeFallback(name);
@@ -320,7 +351,7 @@ export class Session {
 
   /**
    * Clone the current session
-   * @param {Object} options Configuration options
+   * @param {SessionOptions} [options] - Configuration options
    * @returns {Promise<Session>} Cloned session
    */
   async clone(options = {}) {
