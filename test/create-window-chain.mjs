@@ -8,7 +8,7 @@ import {
   DistributedCache, 
   PerformanceAnalytics, 
   CompositionChains 
-} from '../src/index.js';
+} from '../src/index.mjs';
 
 // Mock implementation for window.ai
 globalThis.ai = {

@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { CacheCompression } from '../src/index.js';
+import { CacheCompression } from '../src/index.mjs';
 
 test('CacheCompression', async (t) => {
   let compression;

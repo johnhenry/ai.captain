@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { CompositionChains, Session } from '../src/index.js';
+import { CompositionChains, Session } from '../src/index.mjs';
 
 // Mock session class for testing
 class MockSession {

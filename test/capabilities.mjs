@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { Capabilities } from '../src/index.js';
+import { Capabilities } from '../src/index.mjs';
 
 test('Capabilities', async (t) => {
   let capabilities;

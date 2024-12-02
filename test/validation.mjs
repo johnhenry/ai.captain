@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import test from 'node:test';
-import { TemplateValidator } from '../src/templates/validation.js';
+import { TemplateValidator } from '../src/templates/validation.mjs';
 
 test('TemplateValidator', async (t) => {
   let validator;
