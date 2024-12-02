@@ -22,5 +22,10 @@
   "markdown": {
     "hardwrap": false,
     "idInHeadings": true
+  },
+  "typescript": {
+    "enabled": true,
+    "moduleRoot": "src",
+    "includeDeclarations": true
   }
 }

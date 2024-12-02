@@ -1,5 +1,8 @@
 /**
  * Advanced template validation system
+ * @typedef {Object} ValidationResult
+ * @property {boolean} valid - Indicates if the validation passed
+ * @property {string[]} errors - List of validation errors
  */
 export class TemplateValidator {
   constructor() {
@@ -59,7 +62,7 @@ export class TemplateValidator {
    * Validate a value against a schema
    * @param {any} value Value to validate
    * @param {Object} schema Validation schema
-   * @returns {Object} Validation result
+   * @returns {ValidationResult} Validation result
    */
   validate(value, schema) {
     const errors = [];

@@ -3,7 +3,28 @@
  */
 import { TemplateValidator } from './validation.mjs';
 
+/**
+ * @typedef {Object} TemplateOptions
+ * @property {Object} [defaults={}] Default values for template variables
+ * @property {Object} [schema={}] Validation schema for template variables
+ */
+
+/**
+ * @typedef {Object} Template
+ * @property {string} content Template content
+ * @property {Array<string>} variables Template variables
+ * @property {Object} defaults Default values for template variables
+ * @property {string|null} parent Parent template name
+ */
+
+/**
+ * Template system for managing and applying templates
+ */
 export class TemplateSystem {
+  /**
+   * Create a new TemplateSystem instance
+   * @param {Object} session Session instance
+   */
   constructor(session) {
     this.session = session;
     this.session.overrideTemplates = this;
@@ -17,9 +38,7 @@ export class TemplateSystem {
    * Register a new template
    * @param {string} name Template name
    * @param {string} content Template content
-   * @param {Object} [options={}] Template options
-   * @param {Object} [options.defaults={}] Default values for template variables
-   * @param {Object} [options.schema={}] Validation schema for template variables
+   * @param {TemplateOptions} [options={}] Template options
    */
   register(name, content, options = {}) {
     const { defaults = {}, schema = {} } = options;
@@ -41,9 +60,7 @@ export class TemplateSystem {
    * Create a new template that inherits from a parent template
    * @param {string} name New template name
    * @param {string} parentName Parent template name
-   * @param {Object} [options={}] Template options
-   * @param {Object} [options.defaults={}] Default values for template variables
-   * @param {Object} [options.schema={}] Additional validation schema for template variables
+   * @param {TemplateOptions} [options={}] Template options
    */
   inherit(name, parentName, options = {}) {
     const { defaults = {}, schema = {} } = options;

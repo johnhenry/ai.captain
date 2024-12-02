@@ -89,6 +89,16 @@ export async function destroySession(session) {
 
 /**
  * A class representing a window.ai session with caching and template support
+ * @typedef {Object} SessionOptions
+ * @property {Object} [cache] - Cache configuration
+ * @property {boolean} [cache.enabled] - Enable caching
+ * @property {number} [cache.ttl] - Cache TTL in milliseconds
+ * @property {Object} [cache.compression] - Compression options
+ * @property {('lz'|'deflate')} [cache.compression.algorithm] - Compression algorithm
+ * @property {('fast'|'default'|'max')} [cache.compression.level] - Compression level
+ * @property {number} [cache.compression.threshold] - Compression threshold in bytes
+ * @property {Object} [fallback] - Fallback configuration
+ * @property {Function} [fallback.onFallback] - Fallback callback
  */
 export class Session {
   /** @type {Object} */ #session;
