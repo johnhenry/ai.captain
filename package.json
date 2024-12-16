@@ -12,6 +12,10 @@
     "./composition": "./src/composition/index.mjs",
     "./monitoring": "./src/monitoring/index.mjs"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnhenry/ai.captain.git"
+  },
   "scripts": {
     "test": "node --test test/index.mjs",
     "build": "rollup -c",
