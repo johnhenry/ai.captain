@@ -1,6 +1,6 @@
 {
   "name": "ai.captain",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "AI Captain is a powerful utility library that bridges window.ai's language model capabilities with LangChain-style patterns and abstractions. It provides a comprehensive set of tools for building robust AI-powered applications using window.ai's in-browser language models.",
   "type": "module",
   "main": "src/index.mjs",
