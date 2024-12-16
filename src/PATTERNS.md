@@ -73,7 +73,7 @@ export class Session {
  * @returns {Promise<Object>} window.ai session
  * @throws {Error} If window.ai is not available
  */
-export function createSession(options = {}) {
+export function createSession(options = {}, ai = window.ai) {
   // ...
 }
 ```

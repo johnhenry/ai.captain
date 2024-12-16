@@ -11,7 +11,7 @@ function createAICaptain(options?: {
   session?: {
     temperature?: number;
   };
-}): Promise<AICaptain>;
+}, ai?: AI): Promise<AICaptain>;
 ```
 
 ## Core Classes
