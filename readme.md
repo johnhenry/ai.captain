@@ -1,6 +1,6 @@
 # ai.captain
 
-<img src="./logo.png" alt="AI.Captain Logo" style="width:256px; height:256px">
+<img src="https://raw.githubusercontent.com/johnhenry/ai.captain/main/logo.png" alt="AI.Captain Logo" style="width:256px; height:256px">
 
 > [!TIP]
 > ai.captain works well with [ai.matey](https://www.npmjs.com/package/ai.matey)
@@ -32,14 +32,14 @@ import ai from "ai.captain";
 #### Via CDN
 
 ```javascript
-import ai from "https://cdn.jsdelivr.net/npm/ai.captain@0.0.1/src/index.mjs";
+import ai from "https://cdn.jsdelivr.net/npm/ai.captain@0.0.2/src/index.mjs";
 //...
 ```
 
 OR
 
 ```javascript
-import ai from "https://ga.jspm.io/npm:ai.matey@0.0.1/src/index.mjs";
+import ai from "https://ga.jspm.io/npm:ai.matey@0.0.2/src/index.mjs";
 //...
 ```
 
