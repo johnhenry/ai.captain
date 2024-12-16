@@ -1,18 +1,19 @@
 import assert from 'node:assert';
 import test from 'node:test';
 import { Capabilities } from '../src/index.mjs';
+import ai from 'ai.matey/mock';
 
 test('Capabilities', async (t) => {
   let capabilities;
 
   t.beforeEach(async () => {
-    capabilities = await Capabilities.get();
+    capabilities = await Capabilities.get(ai);
   });
 
   // Core functionality tests
   await t.test('initialization', async (t) => {
     await t.test('static get method', async () => {
-      const caps = await Capabilities.get();
+      const caps = await Capabilities.get(ai);
       assert.ok(caps instanceof Capabilities);
       assert.ok(caps.available);
       assert.ok(caps.defaultTopK);
