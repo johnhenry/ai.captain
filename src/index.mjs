@@ -1,6 +1,6 @@
 /**
- * Window Chain - A powerful utility library for window.ai
- * @module window-chain
+ * AI Captain - A powerful utility library for window.ai
+ * @module ai.captain
  */
 
 // Core
@@ -22,9 +22,10 @@ import { CompositionChains } from './composition/chains.mjs';
 // Monitoring
 import { PerformanceAnalytics } from './monitoring/analytics.mjs';
 import { FallbackSystem } from './monitoring/fallback.mjs';
+import AIDefault from './ai.mjs';
 
 /**
- * @typedef {Object} WindowChainOptions
+ * @typedef {Object} AICaptainOptions
  * @property {Object} [session] - Session configuration options
  * @property {number} [session.temperature] - Model temperature (0-1)
  * @property {Object} [cache] - Cache configuration
@@ -34,7 +35,7 @@ import { FallbackSystem } from './monitoring/fallback.mjs';
  */
 
 /**
- * @typedef {Object} WindowChain
+ * @typedef {Object} AICaptain
  * @property {Session} session - Session instance
  * @property {Capabilities} capabilities - Capabilities instance
  * @property {TemplateSystem} templates - Template system instance
@@ -63,14 +64,14 @@ export {
 };
 
 /**
- * Create a new Window Chain instance with all features enabled
- * @param {WindowChainOptions} [options={}] - Configuration options
- * @returns {Promise<WindowChain>} Window Chain instance
+ * Create a new AI Captain instance with all features enabled
+ * @param {AICaptainOptions} [options={}] - Configuration options
+ * @returns {Promise<AICaptain>} AI Captain instance
  */
-export async function createWindowChain(options = {}) {
+export async function createAICaptain(options = {}, ai = AIDefault) {
   // Initialize core components
-  const capabilities = await Capabilities.get();
-  const session = await Session.create(options.session);
+  const capabilities = await Capabilities.get(ai);
+  const session = await Session.create(options.session, ai);
 
   // Initialize template system
   const templates = new TemplateSystem(session);

@@ -1,27 +1,27 @@
-# Window Chain API Reference
+# AI Captain API Reference
 
 ## Core Functions
 
-### createWindowChain
+### createAICaptain
 
-Create a new Window Chain instance with all features enabled.
+Create a new AI Captain instance with all features enabled.
 
 ```typescript
-function createWindowChain(options?: {
+function createAICaptain(options?: {
   session?: {
     temperature?: number;
   };
-}): Promise<WindowChain>;
+}): Promise<AICaptain>;
 ```
 
 ## Core Classes
 
-### WindowChain
+### AICaptain
 
 The main class for interacting with window.ai's language models.
 
 ```typescript
-interface WindowChain {
+interface AICaptain {
   session: Session;
   capabilities: Capabilities;
   templates: TemplateSystem;
@@ -390,10 +390,10 @@ try {
 ## Complete Example
 
 ```javascript
-import { createWindowChain } from 'window-chain';
+import { createAICaptain } from 'ai.captain';
 
 // Create instance with all features
-const chain = await createWindowChain({
+const chain = await createAICaptain({
   session: {
     systemPrompt: 'You are a helpful assistant'
   },

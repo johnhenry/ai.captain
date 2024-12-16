@@ -18,7 +18,7 @@ API Documentation vs Implementation Inconsistencies:
     The API docs show TypeScript interfaces, but the codebase is in JavaScript without type definitions
 
 Test Coverage Gaps:
-    Tests exist for core functionality (create-window-chain.mjs, session.mjs), but some documented features lack corresponding tests:
+    Tests exist for core functionality (create-ai.captain.mjs, session.mjs), but some documented features lack corresponding tests:
     Missing tests for CacheCompression despite being in source
     Missing tests for PerformanceAnalytics features
 

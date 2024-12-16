@@ -16,7 +16,7 @@ import "./performance-analytics.mjs"; // Performance monitoring
 
 // Integration tests
 import "./composition-chains.mjs";   // Chain composition
-import "./create-window-chain.mjs";  // Window chain creation
+import "./create-ai.captain.mjs";  // AI Captain creation
 
 // Enhancement tests
 import "./cache-compression.mjs";    // Cache compression features

@@ -1,12 +1,12 @@
 import * as index from './index.mjs';
 
 /**
- * Defines window-chain components in a global object
+ * Defines ai.captain components in a global object
  * @param {Object} [object={}] - Target object to define components in
  * @param {'silent'|'warn'|'error'} [overwrite='silent'] - Behavior when overwriting existing properties
  * @returns {Object} Empty object for chaining
  */
-export function defineGlobal(object = {}, overwrite = 'silent') {
+const defineGlobal = (object = {}, overwrite = 'silent') => {
   if (!object) {
     return;
   }
@@ -28,3 +28,5 @@ export function defineGlobal(object = {}, overwrite = 'silent') {
   }
   return {};
 }
+export { defineGlobal };
+export default defineGlobal;

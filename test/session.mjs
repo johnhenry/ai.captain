@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { Session } from '../src/index.js';
+import { Session } from '../src/index.mjs';
 
 test('Session', async (t) => {
   let session;

@@ -3,7 +3,7 @@
  */
 
 // Determine if running in a browser environment
-const isBrowser = typeof window !== 'undefined';
+import AIDefault from '../ai.mjs';
 
 export class Capabilities {
   constructor(rawCapabilities) {
@@ -24,10 +24,8 @@ export class Capabilities {
    * Get current window.ai capabilities
    * @returns {Promise<Capabilities>} Capabilities instance
    */
-  static async get() {
+  static async get(ai = AIDefault) {
     // Use window.ai if available, otherwise use the mock implementation
-    const ai = isBrowser ? window.ai : globalThis.ai;
-
     if (!ai) {
       throw new Error('window.ai API not available');
     }

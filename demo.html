@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WindowChain Demo</title>
+    <title>AI Captain Demo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
   
@@ -13,7 +13,7 @@
     <header class="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
       <div class="max-w-7xl mx-auto px-4 py-4">
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-bold">WindowChain Demo</h1>
+          <h1 class="text-2xl font-bold">AI Captain Demo</h1>
           <div class="flex items-center space-x-4">
             <div id="modelStatus" class="text-sm text-gray-600">Checking model availability...</div>
             <label class="inline-flex items-center">
@@ -305,17 +305,17 @@
           ></div>
         </div>
       </div>
-    <script type="module" src="./src/auto.global.js">
+    <script type="module" src="./src/auto.global.mjs">
     </script>
     <script type="module">
-      // import {
-      //   Session,
-      //   TemplateSystem,
-      //   DistributedCache,
-      //   PerformanceAnalytics,
-      //   CompositionBuilder,
-      //   CompositionChains
-      // } from "./src/index.js";
+      import {
+        Session,
+        TemplateSystem,
+        DistributedCache,
+        PerformanceAnalytics,
+        CompositionBuilder,
+        CompositionChains
+      } from "./src/index.mjs";
 
       // Initialize markdown-it
       const md = window.markdownit();
@@ -480,16 +480,7 @@
 
       async function initializeComponents() {
         try {
-          session = await Session.create({
-            topK: 1,
-            temperature: 0.7,
-            onDownloadProgress: (e) => {
-              elements.downloadProgress.classList.remove("hidden");
-              const percent = Math.round((e.loaded / e.total) * 100);
-              elements.downloadBar.style.width = `${percent}%`;
-              elements.downloadText.textContent = `Downloaded ${e.loaded}/${e.total} bytes`;
-            },
-          });
+          session = await Session.create();
 
           templates = new TemplateSystem(session);
           cache = new DistributedCache();
@@ -502,6 +493,7 @@
             elements.downloadProgress.classList.add("hidden");
           } else {
             elements.modelStatus.textContent = "window.ai not available";
+            return;
           }
 
           // Register templates
@@ -540,7 +532,25 @@
       const translate = async (input) => {
         const start = Date.now();
         try {
+                    {
+            const model = await window.ai.languageModel.create({
+              context: "You are an expert in explaining complex topics.",
+              temperature: 0.7,
+              topK:1,
+              maxTokens: 200,
+              seed: 1
+            });
+
+            const poem = await model.prompt(input);
+            console.log(poem);
+          }
+          console.log(1, session);
           const response = await session.prompt(input);
+          console.log(2)
+
+
+
+
           analytics.record('responseTime', Date.now() - start);
           analytics.record('successRate', 1);
           return response;
@@ -851,7 +861,7 @@
           });
           log('Session reset successful', 'info');
           elements.modelStatus.textContent = 'Model ready';
-          
+
           // Clear all text boxes
           elements.translateText.value = "Hello world";  // Reset to default
           elements.translateOutput.textContent = "";

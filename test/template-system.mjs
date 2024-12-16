@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { TemplateSystem, Session } from '../src/index.js';
+import { TemplateSystem, Session } from '../src/index.mjs';
 
 // Mock session class for testing
 class MockSession {

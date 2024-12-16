@@ -1,3 +1,3 @@
 import { defineGlobal } from './inject.mjs';
-export { defineGlobal };
+globalThis.ai = {};
 defineGlobal(globalThis.ai);

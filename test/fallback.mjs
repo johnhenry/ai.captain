@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import test from 'node:test';
-import { FallbackSystem } from '../src/monitoring/fallback.js';
+import { FallbackSystem } from '../src/monitoring/fallback.mjs';
 
 // Mock session class for testing
 class MockSession {

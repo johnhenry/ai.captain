@@ -1,4 +1,4 @@
-# Window Chain
+# AI Captain
 
 A powerful, modular library for integrating with window.ai, featuring advanced template processing, caching, composition, and monitoring capabilities.
 
@@ -14,16 +14,16 @@ A powerful, modular library for integrating with window.ai, featuring advanced t
 ## Installation
 
 ```bash
-npm install window-chain
+npm install ai.captain
 ```
 
 ## Quick Start
 
 ```javascript
-import { createWindowChain, TemplateSystem, CompositionBuilder } from 'window-chain';
+import { createAICaptain, TemplateSystem, CompositionBuilder } from 'ai.captain';
 
 // Initialize components
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);  // Pass session to TemplateSystem
 const composer = new CompositionBuilder(chain.session);  // Pass session to CompositionBuilder
 
@@ -60,10 +60,10 @@ console.log(translation); // Hola mundo
 The `Session` class manages interactions with window.ai:
 
 ```javascript
-import { createWindowChain } from 'window-chain';
+import { createAICaptain } from 'ai.captain';
 
 // Create a new chain
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 
 // Basic prompt
 const response = await chain.session.prompt("Hello!");
@@ -88,10 +88,10 @@ try {
 Create and manage message templates with validation:
 
 ```javascript
-import { createWindowChain } from 'window-chain';
+import { createAICaptain } from 'ai.captain';
 
 // Initialize components
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 
 // Register a template
@@ -114,10 +114,10 @@ const response = await chain.session.prompt(message);
 Templates can inherit from other templates:
 
 ```javascript
-import { createWindowChain } from 'window-chain';
+import { createAICaptain } from 'ai.captain';
 
 // Initialize components
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 
 // Register base template
@@ -149,9 +149,9 @@ Efficient caching with composition:
 
 
 ```javascript
-import { createWindowChain, CompositionBuilder } from 'window-chain';
+import { createAICaptain, CompositionBuilder } from 'ai.captain';
 
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const composer = new CompositionBuilder(chain.session);
 
 const cachedPrompt = composer
@@ -173,9 +173,9 @@ console.log(response);
 Build complex chains of functionality:
 
 ```javascript
-import { createWindowChain, CompositionBuilder } from 'window-chain';
+import { createAICaptain, CompositionBuilder } from 'ai.captain';
 
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const composer = new CompositionBuilder(chain.session);
 
 const enhancedPrompt = composer
@@ -211,26 +211,26 @@ Check out our [demo.html](demo.html) for a complete example of:
 
 ### Core Functions
 
-#### createWindowChain
+#### createAICaptain
 
-Create a new Window Chain instance with all features enabled.
+Create a new AI Captain instance with all features enabled.
 
 ```typescript
-function createWindowChain(options?: {
+function createAICaptain(options?: {
   session?: {
     temperature?: number;
   };
-}): Promise<WindowChain>;
+}): Promise<AICaptain>;
 ```
 
 ### Core Classes
 
-#### WindowChain
+#### AICaptain
 
 The main class for interacting with window.ai's language models.
 
 ```typescript
-interface WindowChain {
+interface AICaptain {
   session: Session;
   capabilities: Capabilities;
   templates: TemplateSystem;
@@ -399,7 +399,7 @@ try {
 
 3. Always clean up resources:
 ```typescript
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 try {
   // Use chain...
 } finally {
@@ -418,10 +418,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Translation with Templates and Streaming
 
 ```javascript
-import { createWindowChain, TemplateSystem } from "window-chain";
+import { createAICaptain, TemplateSystem } from "ai.captain";
 
 // Initialize components
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 
 // Register translation template
@@ -460,10 +460,10 @@ try {
 ### Advanced Composition with Error Handling
 
 ```javascript
-import { createWindowChain, TemplateSystem, CompositionBuilder } from "window-chain";
+import { createAICaptain, TemplateSystem, CompositionBuilder } from "ai.captain";
 
 // Initialize components
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 const composer = new CompositionBuilder(chain.session);
 
@@ -517,10 +517,10 @@ try {
 ### Streaming with Progress Updates
 
 ```javascript
-import { createWindowChain } from "window-chain";
+import { createAICaptain } from "ai.captain";
 
 // Initialize chain
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 
 // Function to stream with progress
 async function streamWithProgress(prompt) {

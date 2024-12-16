@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { PerformanceAnalytics } from '../src/index.js';
+import { PerformanceAnalytics } from '../src/index.mjs';
 
 test('PerformanceAnalytics', async (t) => {
   let analytics;

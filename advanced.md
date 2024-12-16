@@ -7,10 +7,10 @@
 Templates can inherit from and extend other templates, with proper variable handling and validation:
 
 ```javascript
-import { createWindowChain, TemplateSystem } from 'window-chain';
+import { createAICaptain, TemplateSystem } from 'ai.captain';
 
 // Initialize components
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 
 // Register base template with validation schema
@@ -60,9 +60,9 @@ const translation = await chain.session.prompt(message);
 Create custom validation rules for template inputs with comprehensive validation:
 
 ```javascript
-import { createWindowChain, TemplateSystem } from 'window-chain';
+import { createAICaptain, TemplateSystem } from 'ai.captain';
 
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 
 // Add custom validation rules
@@ -123,9 +123,9 @@ try {
 Create custom validation rules for template inputs with comprehensive validation:
 
 ```javascript
-import { createWindowChain, TemplateSystem } from 'window-chain';
+import { createAICaptain, TemplateSystem } from 'ai.captain';
 
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const templates = new TemplateSystem(chain.session);
 
 // Add custom validation rules
@@ -188,9 +188,9 @@ try {
 Create reusable composition patterns:
 
 ```javascript
-import { createWindowChain, CompositionBuilder } from 'window-chain';
+import { createAICaptain, CompositionBuilder } from 'ai.captain';
 
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const composer = new CompositionBuilder(chain.session);
 
 // Create a translation chain with multiple processing steps
@@ -226,9 +226,9 @@ const result = await translationChain({
 Implement sophisticated error recovery:
 
 ```javascript
-import { createWindowChain, CompositionBuilder } from 'window-chain';
+import { createAICaptain, CompositionBuilder } from 'ai.captain';
 
-const chain = await createWindowChain();
+const chain = await createAICaptain();
 const composer = new CompositionBuilder(chain.session);
 
 // Create prompt with error handling
@@ -370,7 +370,7 @@ try {
 
 ### Setting Up Tests
 
-Create a mock session for testing Window Chain components:
+Create a mock session for testing AI Captain components:
 
 ```javascript
 import { test } from 'node:test';
@@ -380,7 +380,7 @@ import {
   TemplateSystem,
   DistributedCache,
   CompositionBuilder
-} from 'window-chain';
+} from 'ai.captain';
 
 class MockSession extends Session {
   constructor(responses = {}) {

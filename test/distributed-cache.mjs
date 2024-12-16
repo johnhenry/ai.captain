@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { DistributedCache } from '../src/index.js';
+import { DistributedCache } from '../src/index.mjs';
 
 test('DistributedCache', async (t) => {
   let cache;

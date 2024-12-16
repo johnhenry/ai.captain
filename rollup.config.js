@@ -1,17 +1,17 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 
 export default {
-  input: 'src/index.js',
+  input: 'src/index.mjs',
   output: [
     {
-      file: 'dist/window-chain.js',
+      file: 'dist/ai.captain.mjs',
       format: 'es',
       sourcemap: true
     },
     {
-      file: 'dist/window-chain.umd.js',
+      file: 'dist/ai.captain.umd.mjs',
       format: 'umd',
-      name: 'WindowChain',
+      name: 'AICaptain',
       sourcemap: true
     }
   ],

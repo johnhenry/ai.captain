@@ -8,6 +8,7 @@ import { CacheCompression } from '../caching/compression.mjs';
 import { TemplateSystem } from '../templates/system.mjs';
 import { FallbackSystem } from '../monitoring/fallback.mjs';
 import { PerformanceAnalytics } from '../monitoring/analytics.mjs';
+import AIDefault from '../ai.mjs';
 
 // Determine if running in a browser environment
 const isBrowser = typeof window !== 'undefined';
@@ -66,9 +67,7 @@ function generateCacheKey(text, options = {}) {
  * @returns {Promise<Object>} window.ai session
  * @throws {Error} If window.ai API is not available
  */
-export async function createSession(options = {}) {
-  // Use window.ai if available, otherwise use the mock implementation
-  const ai = isBrowser ? window.ai : globalThis.ai;
+async function createSession(options = {}, ai=AIDefault) {
 
   if (!ai) {
     throw new Error('window.ai API not available');
@@ -83,14 +82,14 @@ export async function createSession(options = {}) {
  * @param {Object} session - window.ai session
  * @returns {Promise<void>}
  */
-export async function destroySession(session) {
+async function destroySession(session) {
   await session.destroy();
 }
 
 /**
  * A class representing a window.ai session with caching and template support
  */
-export class Session {
+class Session {
   /** @type {Object} */ #session;
   /** @type {DistributedCache} */ #cache;
   /** @type {CacheCompression} */ #compression;
