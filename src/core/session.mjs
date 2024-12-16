@@ -8,10 +8,9 @@ import { CacheCompression } from '../caching/compression.mjs';
 import { TemplateSystem } from '../templates/system.mjs';
 import { FallbackSystem } from '../monitoring/fallback.mjs';
 import { PerformanceAnalytics } from '../monitoring/analytics.mjs';
-import AIDefault from '../ai.mjs';
+import AIDefault from '../ai.default.mjs';
 
 // Determine if running in a browser environment
-const isBrowser = typeof window !== 'undefined';
 
 /**
  * @typedef {Object} SessionOptions
@@ -160,8 +159,8 @@ class Session {
    * @param {SessionOptions} [options] - Configuration options
    * @returns {Promise<Session>} New session instance
    */
-  static async create(options = {}) {
-    const session = await createSession(options);
+  static async create(options = {}, ai = AIDefault) {
+    const session = await createSession(options, ai);
     return new Session(session, options);
   }
 

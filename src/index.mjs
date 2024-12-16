@@ -22,7 +22,7 @@ import { CompositionChains } from './composition/chains.mjs';
 // Monitoring
 import { PerformanceAnalytics } from './monitoring/analytics.mjs';
 import { FallbackSystem } from './monitoring/fallback.mjs';
-import AIDefault from './ai.mjs';
+import AIDefault from './ai.default.mjs';
 
 /**
  * @typedef {Object} AICaptainOptions

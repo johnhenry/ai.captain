@@ -3,7 +3,7 @@
  */
 
 // Determine if running in a browser environment
-import AIDefault from '../ai.mjs';
+import AIDefault from '../ai.default.mjs';
 
 export class Capabilities {
   constructor(rawCapabilities) {

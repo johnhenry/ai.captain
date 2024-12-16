@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import test from 'node:test';
 import { Session } from '../src/index.mjs';
+import ai from 'ai.matey/mock';
 
 test('Session', async (t) => {
   let session;
@@ -20,18 +21,18 @@ test('Session', async (t) => {
   await t.test('initialization', async (t) => {
     await t.test('create with temperature validation', async () => {
       // Valid temperature
-      session = await Session.create({ temperature: 1.5 });
+      session = await Session.create({ temperature: 1.5 }, ai);
       assert.ok(session instanceof Session);
 
       // Invalid temperature (too high)
       await assert.rejects(
-        Session.create({ temperature: 2.5 }),
+        Session.create({ temperature: 2.5 }, ai),
         { message: 'Temperature must be between 0.0 and 2.0' }
       );
 
       // Invalid temperature (too low)
       await assert.rejects(
-        Session.create({ temperature: -0.5 }),
+        Session.create({ temperature: -0.5 }, ai),
         { message: 'Temperature must be between 0.0 and 2.0' }
       );
     });
@@ -39,7 +40,7 @@ test('Session', async (t) => {
     await t.test('create with system prompt', async () => {
       session = await Session.create({
         systemPrompt: 'You are a helpful translator.'
-      });
+      }, ai);
       const response = await session.prompt('Hello');
       assert.ok(response.includes('Translated: Hello'));
     });
@@ -50,7 +51,7 @@ test('Session', async (t) => {
         { role: 'user', content: 'What is the capital of Italy?' },
         { role: 'assistant', content: 'The capital of Italy is Rome.' }
       ];
-      session = await Session.create({ initialPrompts });
+      session = await Session.create({ initialPrompts }, ai);
       const response = await session.prompt('What language do they speak there?');
       assert.ok(response.includes("I'm a mock AI assistant"));
     });
@@ -59,7 +60,7 @@ test('Session', async (t) => {
   // Token management tests
   await t.test('token management', async (t) => {
     await t.test('token tracking', async () => {
-      session = await Session.create();
+      session = await Session.create({}, ai);
       
       // Initial token count should be 0
       assert.equal(session.tokensSoFar, 0);
@@ -79,7 +80,7 @@ test('Session', async (t) => {
     });
 
     await t.test('streaming behavior', async () => {
-      session = await Session.create();
+      session = await Session.create({}, ai);
       const stream = await session.promptStreaming('Tell me a joke');
       assert.ok(stream instanceof ReadableStream);
 
@@ -105,7 +106,7 @@ test('Session', async (t) => {
     await t.test('clone with system prompt', async () => {
       session = await Session.create({
         systemPrompt: 'You are a helpful translator.'
-      });
+      }, ai);
       
       const clonedSession = await session.clone();
       const response = await clonedSession.prompt('Hello');
@@ -129,7 +130,7 @@ test('Session', async (t) => {
               }
             });
           }
-        });
+        }, ai);
       });
       
       // Wait for progress events to complete
@@ -141,7 +142,7 @@ test('Session', async (t) => {
   // Integration tests
   await t.test('integrations', async (t) => {
     await t.test('template system integration', async () => {
-      session = await Session.create();
+      session = await Session.create({}, ai);
 
       // Register templates before using them
       session.registerTemplate('greeting', 'Hello {name}!');
@@ -164,7 +165,7 @@ test('Session', async (t) => {
             algorithm: 'lz'
           }
         }
-      });
+      }, ai);
 
       // First request should miss cache
       const response1 = await session.prompt('Test prompt');
@@ -181,7 +182,7 @@ test('Session', async (t) => {
     });
 
     await t.test('fallback system integration', async () => {
-      session = await Session.create();
+      session = await Session.create({}, ai);
       
       session.addFallback('backup', {
         prompt: async () => "I'm a mock AI assistant"

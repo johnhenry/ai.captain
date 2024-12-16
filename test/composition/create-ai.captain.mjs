@@ -12,11 +12,8 @@ import {
 } from '../src/index.mjs';
 
 // Mock implementation for window.ai
-globalThis.ai = {
-  prompt: async () => "I'm a mock AI assistant",
-  registerTemplate: () => {},
-  destroy: () => {}
-};
+import ai from 'ai.matey/mock';
+
 
 test('createAICaptain', async (t) => {
   let chain;
@@ -31,7 +28,7 @@ test('createAICaptain', async (t) => {
   // Core functionality tests
   await t.test('initialization', async (t) => {
     await t.test('should create chain with default components', async () => {
-      chain = await createAICaptain();
+      chain = await createAICaptain({}, ai);
       assert.ok(chain.session instanceof Session);
       assert.ok(chain.capabilities);
       assert.ok(chain.templates instanceof TemplateSystem);
@@ -45,7 +42,7 @@ test('createAICaptain', async (t) => {
         temperature: 0.8,
         cache: { enabled: true },
         fallback: { enabled: true }
-      });
+      }, ai);
 
       assert.ok(chain.session instanceof Session);
       const response = await chain.session.prompt('Test');
@@ -56,7 +53,7 @@ test('createAICaptain', async (t) => {
   // Integration tests
   await t.test('component integration', async (t) => {
     await t.test('should integrate templates with session', async () => {
-      chain = await createAICaptain();
+      chain = await createAICaptain({}, ai);
       await chain.templates.register('test', 'Hello {name}!');
       const response = await chain.session.prompt(['test', { name: 'World' }]);
       assert.ok(response.includes("I'm a mock AI assistant"));
